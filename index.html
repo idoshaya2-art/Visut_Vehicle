@@ -737,19 +737,19 @@
   [
    "8110",
    "האמר מנהלתי",
-   "",
+   "706280",
    "הצ׳ חתוך בעמוד 1 של קובץ 8110; סוג הכלי גלוי"
   ],
   [
    "8110",
    "האמר מנהלתי",
-   "",
+   "700481",
    "הצ׳ חתוך בעמוד 1 של קובץ 8110; סוג הכלי גלוי"
   ],
   [
    "8110",
    "האמר מנהלתי",
-   "",
+   "703396",
    "הצ׳ חתוך בעמוד 1 של קובץ 8110; סוג הכלי גלוי"
   ],
   [
@@ -1997,8 +1997,18 @@
   .cellMeta{display:flex;gap:4px;justify-content:center;align-items:center;margin-top:2px;min-height:14px}
   .delta{font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px}
   .delta.pos{color:var(--pos);background:var(--pos-bg)} .delta.neg{color:var(--neg);background:var(--neg-bg)}
-  .rdyDot{width:7px;height:7px;border-radius:50%}
-  .rdyDot.lim{background:var(--rdy-lim)} .rdyDot.off{background:var(--rdy-off)}
+  .rdyDot{width:8px;height:8px;border-radius:50%}
+  .rdyDot.ok{background:var(--rdy-ok)} .rdyDot.lim{background:var(--rdy-lim)} .rdyDot.off{background:var(--rdy-off)}
+  .rdyChip{font-size:9px;font-weight:800;padding:1px 5px;border-radius:6px;line-height:1.5;display:inline-flex;align-items:center;gap:2px}
+  .rdyChip::before{content:"";width:6px;height:6px;border-radius:50%}
+  .rdyChip.ok{background:var(--pos-bg);color:var(--pos)} .rdyChip.ok::before{background:var(--rdy-ok)}
+  .rdyChip.lim{background:#fdefd3;color:var(--amber)} .rdyChip.lim::before{background:var(--rdy-lim)}
+  .rdyChip.off{background:var(--neg-bg);color:var(--neg)} .rdyChip.off::before{background:var(--rdy-off)}
+  .rdyLegend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 20px;border-top:1px solid var(--line2);background:#fbfcfe;font-size:12px}
+  .rdyLegend .lgTtl{font-weight:800;color:var(--ink2);font-family:"Rubik",sans-serif}
+  .rdyLegend .lgItem{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--ink2)}
+  .rdyLegend .lgItem .rdyDot{width:10px;height:10px}
+  .rdyLegend .lgNote{color:var(--muted);font-weight:500;margin-inline-start:auto}
   .tchip{font-size:9px;font-weight:800;padding:1px 5px;border-radius:6px;background:var(--brand-soft);color:var(--brand-ink)}
   .tchip.def{background:var(--neg-bg);color:var(--neg)} .tchip.sur{background:var(--pos-bg);color:var(--pos)}
   .cell[draggable=true]{cursor:grab}
@@ -2195,6 +2205,13 @@
         <span class="spacer"></span>
         <span class="desc">לחצו על מספר בתא כדי לפתוח את רשימת הכלים והצ׳ · או גררו / +− להעברה מהירה</span>
       </div>
+      <div class="rdyLegend">
+        <span class="lgTtl">מקרא כשירות:</span>
+        <span class="lgItem"><span class="rdyDot ok"></span>כשיר</span>
+        <span class="lgItem"><span class="rdyDot lim"></span>מוגבל</span>
+        <span class="lgItem"><span class="rdyDot off"></span>מושבת</span>
+        <span class="lgNote">מוצג בכל תא (מספר לפי סטטוס) · לעריכה — לחצו על מספר בתא</span>
+      </div>
       <div class="tableWrap" id="scenarioTableWrap"></div>
     </section>
 
@@ -2298,7 +2315,9 @@ function tabTypes(){return tabCats().flatMap(c=>TYPES.filter(t=>TYPE_CAT[t]===c)
 let toastTimer;function toast(m,t){const el=document.getElementById('toast');el.innerHTML=(t==='err'?ic('alert'):t==='good'?ic('check'):'')+'<span>'+esc(m)+'</span>';el.className='toast show'+(t?' '+t:'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',2600);}
 
 function save(){try{localStorage.setItem(LS,JSON.stringify({v:V.map(v=>({id:v.id,unit:v.unit,tsadi:v.tsadi,note:v.note,ready:v.ready})),log,targets}));}catch(e){}}
-function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r);if(o&&o.v){o.v.forEach(sv=>{const v=byId(sv.id);if(v){v.unit=sv.unit;if(sv.tsadi!=null)v.tsadi=sv.tsadi;if(sv.note!=null)v.note=sv.note;v.ready=sv.ready||'כשיר';}});log=o.log||[];targets=o.targets||{};return true;}}}catch(e){}return false;}
+function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r);if(o&&o.v){o.v.forEach(sv=>{const v=byId(sv.id);if(v){v.unit=sv.unit;if(sv.tsadi)v.tsadi=sv.tsadi;if(sv.note)v.note=sv.note;v.ready=sv.ready||'כשיר';}});log=o.log||[];targets=o.targets||{};return true;}}}catch(e){}return false;}
+// recover readiness (כשירות) edits orphaned under older versioned state keys
+function migrateReadiness(){try{for(let i=12;i>=1;i--){const raw=localStorage.getItem('vr_state_v'+i);if(!raw)continue;let o;try{o=JSON.parse(raw);}catch(e){continue;}if(!o||!o.v)continue;o.v.forEach(sv=>{if(sv&&sv.ready&&sv.ready!=='כשיר'){const v=byId(sv.id);if(v&&v.ready==='כשיר')v.ready=sv.ready;}});}save();}catch(e){}}
 function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[0],to=dm[1]; const v=V.find(x=>x.tsadi===ts); if(v&&v.unit!==to) moveVehicle(v.id,to); }); }
 function savedScenarios(){try{return JSON.parse(localStorage.getItem(LS_SAVED)||'{}');}catch(e){return {};}}
 function writeSaved(o){try{localStorage.setItem(LS_SAVED,JSON.stringify(o));}catch(e){}}
@@ -2362,7 +2381,11 @@ function scenarioCell(u,t){
   const lim=vs.filter(v=>v.ready==='מוגבל').length,off=vs.filter(v=>v.ready==='מושבת').length;
   let meta='';
   if(d!==0)meta+='<span class="delta '+(d>0?'pos':'neg')+'">'+(d>0?'+':'')+d+'</span>';
-  if(off)meta+='<span class="rdyDot off" title="'+off+' מושבתים"></span>';else if(lim)meta+='<span class="rdyDot lim" title="'+lim+' מוגבלים"></span>';
+  if(n>0){ if(off||lim){ const ok=n-off-lim;
+      if(off)meta+='<span class="rdyChip off" title="מושבת">'+off+'</span>';
+      if(lim)meta+='<span class="rdyChip lim" title="מוגבל">'+lim+'</span>';
+      if(ok>0)meta+='<span class="rdyChip ok" title="כשיר">'+ok+'</span>';
+    } else { meta+='<span class="rdyDot ok" title="כל '+n+' הכלים כשירים"></span>'; } }
   if(u!==POOL){const tg=targets[u]&&targets[u][t];if(tg!=null&&tg!==''){const df=n-tg;meta+='<span class="tchip '+(df<0?'def':(df>0?'sur':''))+'">יעד '+tg+(df<0?' ('+df+')':'')+'</span>';}}
   return '<td class="cell" data-u="'+esc(u)+'" data-t="'+esc(t)+'" draggable="true">'+
     '<div class="cellInner">'+
@@ -2546,7 +2569,7 @@ function exportCSV(){
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
 function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();renderTargets();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
-if(!load())applyDefaultMoves();migrateSavedScenarios();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+if(!load())applyDefaultMoves();migrateSavedScenarios();migrateReadiness();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
 </body>
