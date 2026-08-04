@@ -2284,7 +2284,7 @@ const TYPE_TOTAL={}; TYPES.forEach(t=>TYPE_TOTAL[t]=V.filter(v=>v.type===t).leng
 let log=[]; let targets={};
 let activeTab='רכב', tgType='האמר סיור', targetsOpen=false, baseOpen=false;
 let drawerKey=null, drawerSel=new Set();
-const LS='vr_state_v9', LS_SAVED='vr_saved_v9';
+const LS='vr_state_v9', LS_SAVED='vr_saved';
 
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 function byId(id){return V.find(v=>v.id===id);}
@@ -2302,6 +2302,10 @@ function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r)
 function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[0],to=dm[1]; const v=V.find(x=>x.tsadi===ts); if(v&&v.unit!==to) moveVehicle(v.id,to); }); }
 function savedScenarios(){try{return JSON.parse(localStorage.getItem(LS_SAVED)||'{}');}catch(e){return {};}}
 function writeSaved(o){try{localStorage.setItem(LS_SAVED,JSON.stringify(o));}catch(e){}}
+// recover scenarios that were orphaned under older versioned keys, into the stable key
+function migrateSavedScenarios(){try{const cur=savedScenarios();let changed=false;
+  for(let i=1;i<=12;i++){const k='vr_saved_v'+i;const raw=localStorage.getItem(k);if(!raw)continue;try{const o=JSON.parse(raw);Object.keys(o).forEach(name=>{if(!(name in cur)){cur[name]=o[name];changed=true;}});}catch(e){}}
+  if(changed)writeSaved(cur);}catch(e){}}
 
 function moveVehicle(vid,to,opts){opts=opts||{};const v=byId(vid);if(!v)return false;const from=v.unit;if(from===to){if(!opts.silent)toast('מקור ויעד זהים','err');return false;}v.unit=to;if(opts.log!==false)log.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,6),t:Date.now(),vid,tsadi:v.tsadi,type:v.type,from,to});save();return true;}
 function moveQty(type,from,to,qty){qty=Math.floor(qty);if(from===to){toast('מקור ויעד זהים','err');return false;}if(!(qty>0)){toast('כמות לא תקינה','err');return false;}const list=inCell(from,type);if(list.length<qty){toast('אין מספיק «'+type+'» ב־'+from+' (קיימים '+list.length+')','err');return false;}for(let i=0;i<qty;i++)moveVehicle(list[i].id,to);return true;}
@@ -2542,7 +2546,7 @@ function exportCSV(){
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
 function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();renderTargets();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
-if(!load())applyDefaultMoves();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+if(!load())applyDefaultMoves();migrateSavedScenarios();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
 </body>
