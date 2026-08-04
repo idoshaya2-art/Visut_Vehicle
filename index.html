@@ -1983,7 +1983,10 @@
   tr.poolRow .frameName .ic,tr.poolRow .numBtn{color:var(--amber-strong)}
 
   .cell{position:relative;padding:5px 3px;min-width:70px}
-  .cellInner{display:flex;align-items:center;justify-content:center;gap:3px}
+  .cellInner{display:flex;align-items:center;justify-content:center;gap:3px;position:relative}
+  .cellDelta{position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:800;padding:1px 5px;border-radius:6px;pointer-events:none;z-index:1}
+  .cellDelta.pos{color:var(--pos);background:var(--pos-bg)} .cellDelta.neg{color:var(--neg);background:var(--neg-bg)}
+  .cell:hover .cellDelta{opacity:0}
   .numBtn{border:none;background:transparent;font-family:inherit;font-size:17px;font-weight:800;min-width:26px;cursor:pointer;color:inherit;padding:3px 5px;border-radius:8px;transition:background .14s}
   .numBtn:hover{background:var(--brand-soft)}
   .numBtn.zero{color:#cbd5e3;font-weight:600;cursor:default}
@@ -2183,6 +2186,7 @@
       <button class="btn ghost" id="btnLoad">טען</button>
       <button class="btn ghost" id="btnSave" data-ic="save">שמור</button>
       <button class="btn ghost" id="btnDelSaved" data-ic="trash">מחק</button>
+      <button class="btn ghost" id="btnStartup" data-ic="star">קבע כפתיחה</button>
       <span class="sep"></span>
       <button class="btn primary" id="btnCsv" data-ic="download">CSV</button>
       <button class="btn" id="btnPrint" data-ic="printer">PDF</button>
@@ -2272,7 +2276,8 @@ const P={
   route:'<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   hash:'<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>',
   move:'<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>',
-  search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>'
+  search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'
 };
 function ic(n,cls){return '<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(P[n]||'')+'</svg>';}
 
@@ -2321,7 +2326,10 @@ function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r)
 // recover readiness (כשירות) edits orphaned under older versioned state keys
 function migrateReadiness(){try{for(let i=12;i>=1;i--){const raw=localStorage.getItem('vr_state_v'+i);if(!raw)continue;let o;try{o=JSON.parse(raw);}catch(e){continue;}if(!o||!o.v)continue;o.v.forEach(sv=>{if(sv&&sv.ready&&sv.ready!=='כשיר'){const v=byId(sv.id);if(v&&v.ready==='כשיר')v.ready=sv.ready;}});}save();}catch(e){}}
 function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[0],to=dm[1]; const v=V.find(x=>x.tsadi===ts); if(v&&v.unit!==to) moveVehicle(v.id,to); }); }
-const STARTUP_NAME='1'; // scenario shown on open
+// which saved scenario opens on load (user-set; defaults to "1")
+function getStartupName(){try{const s=localStorage.getItem('vr_startup');if(s!=null)return s;}catch(e){}return '1';}
+function setStartupName(name){try{if(name)localStorage.setItem('vr_startup',name);else localStorage.removeItem('vr_startup');}catch(e){}}
+function findScenario(name){const o=savedScenarios();if(o[name])return o[name];const key=Object.keys(o).find(k=>k.trim()===String(name).trim());return key?o[key]:null;}
 function applyScenario(s){ V.forEach(v=>v.unit=v.base); (s.v||[]).forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;}); log=s.log?JSON.parse(JSON.stringify(s.log)):[]; targets=s.targets?JSON.parse(JSON.stringify(s.targets)):{}; save(); }
 function savedScenarios(){try{return JSON.parse(localStorage.getItem(LS_SAVED)||'{}');}catch(e){return {};}}
 function writeSaved(o){try{localStorage.setItem(LS_SAVED,JSON.stringify(o));}catch(e){}}
@@ -2384,12 +2392,12 @@ function scenarioCell(u,t){
   const vs=inCell(u,t),n=vs.length,d=n-baseCount(u,t);
   const lim=vs.filter(v=>normReady(v.ready)==='מוגבל').length,off=vs.filter(v=>normReady(v.ready)==='מושבת').length;
   let meta='';
-  if(d!==0)meta+='<span class="delta '+(d>0?'pos':'neg')+'">'+(d>0?'+':'')+d+'</span>';
   if(off)meta+='<span class="rdyChip off">'+off+' מושבת</span>';
   if(lim)meta+='<span class="rdyChip lim">'+lim+' מוגבל</span>';
   if(u!==POOL){const tg=targets[u]&&targets[u][t];if(tg!=null&&tg!==''){const df=n-tg;meta+='<span class="tchip '+(df<0?'def':(df>0?'sur':''))+'">יעד '+tg+(df<0?' ('+df+')':'')+'</span>';}}
+  const deltaHtml=(d!==0)?'<span class="cellDelta '+(d>0?'pos':'neg')+'" title="שינוי מול הבסיס">'+(d>0?'+':'')+d+'</span>':'';
   return '<td class="cell" data-u="'+esc(u)+'" data-t="'+esc(t)+'" draggable="true">'+
-    '<div class="cellInner">'+
+    '<div class="cellInner">'+deltaHtml+
       '<button class="stp" data-action="minus" data-u="'+esc(u)+'" data-t="'+esc(t)+'" '+(n<=0?'disabled':'')+' aria-label="הורד אחד">'+ic('minus')+'</button>'+
       '<button class="numBtn'+(n===0?' zero':'')+'" data-action="open" data-u="'+esc(u)+'" data-t="'+esc(t)+'" '+(n===0?'disabled':'')+' title="פתח רשימת כלים / צ׳">'+n+'</button>'+
       '<button class="stp" data-action="plus" data-u="'+esc(u)+'" data-t="'+esc(t)+'" aria-label="הוסף אחד">'+ic('plus')+'</button>'+
@@ -2540,13 +2548,14 @@ document.getElementById('backdrop').addEventListener('click',closeDrawer);
 document.getElementById('logList').addEventListener('click',e=>{const b=e.target.closest('[data-del]');if(b)deleteLogEntry(b.getAttribute('data-del'));});
 document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.closest('.tab');if(!b)return;activeTab=b.getAttribute('data-tab');document.querySelectorAll('#tabs .tab').forEach(x=>x.classList.toggle('active',x===b));renderScenario();renderBaseline();});
 
-function refreshSavedSel(){const s=document.getElementById('savedSel'),o=savedScenarios(),n=Object.keys(o);s.innerHTML='<option value="">— תרחישים שמורים ('+n.length+') —</option>'+n.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');}
+function refreshSavedSel(){const s=document.getElementById('savedSel'),o=savedScenarios(),n=Object.keys(o),su=getStartupName();s.innerHTML='<option value="">— תרחישים שמורים ('+n.length+') —</option>'+n.map(x=>'<option value="'+esc(x)+'">'+esc(x)+(x===su?' ★ פתיחה':'')+'</option>').join('');}
 function resetScenario(){V.forEach(v=>v.unit=v.base);log=[];}
 document.getElementById('btnReset').addEventListener('click',()=>{if(!confirm('לאפס את הוויסות לבסיס? הלוג יימחק (הצ׳ וההערות יישמרו).'))return;resetScenario();save();renderAll();toast('אופס לבסיס','good');});
 document.getElementById('btnExample').addEventListener('click',()=>{if(!confirm('לטעון תרחיש דוגמה? גדס"ר מחלק האמרי סיור: 2→7020, 2→8110, 2→8111, 1→גדס"מ, 4→מפח"ט.'))return;resetScenario();[['7020',2],['8110',2],['8111',2],['גדס"מ',1],['מפח"ט',4]].forEach(x=>moveQty('האמר סיור','גדס"ר',x[0],x[1]));save();renderAll();toast('נטען תרחיש הדוגמה','good');});
 document.getElementById('btnSave').addEventListener('click',()=>{const n=prompt('שם לתרחיש:','תרחיש '+new Date().toLocaleString('he-IL'));if(!n)return;const o=savedScenarios();o[n]={v:V.map(v=>({id:v.id,unit:v.unit})),log,targets};writeSaved(o);refreshSavedSel();toast('נשמר: '+n,'good');});
 document.getElementById('btnLoad').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}const s=savedScenarios()[n];if(!s)return;if(!confirm('לטעון «'+n+'»? הוויסות הנוכחי יוחלף.'))return;s.v.forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;});log=s.log||[];targets=s.targets||{};save();renderAll();toast('נטען: '+n,'good');});
-document.getElementById('btnDelSaved').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}if(!confirm('למחוק «'+n+'»?'))return;const o=savedScenarios();delete o[n];writeSaved(o);refreshSavedSel();toast('נמחק','good');});
+document.getElementById('btnDelSaved').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}if(!confirm('למחוק «'+n+'»?'))return;const o=savedScenarios();delete o[n];writeSaved(o);if(getStartupName()===n)setStartupName('');refreshSavedSel();toast('נמחק','good');});
+document.getElementById('btnStartup').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש מהרשימה כדי לקבוע אותו כתרחיש הפתיחה','err');return;}if(!savedScenarios()[n]){toast('תרחיש לא קיים','err');return;}setStartupName(n);refreshSavedSel();toast('«'+n+'» ייפתח אוטומטית בכל פתיחה ★','good');});
 document.getElementById('btnUndo').addEventListener('click',undoLast);
 document.getElementById('btnClearLog').addEventListener('click',()=>{if(!log.length){toast('הלוג ריק','err');return;}if(!confirm('לנקות לוג ולהחזיר לבסיס?'))return;resetScenario();save();renderAll();toast('נוקה','good');});
 document.getElementById('btnToggleBase').addEventListener('click',()=>{baseOpen=!baseOpen;document.getElementById('baselineTableWrap').style.display=baseOpen?'block':'none';});
@@ -2571,7 +2580,7 @@ function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('tru
 function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();renderTargets();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
 migrateSavedScenarios();
-const _startup=savedScenarios()[STARTUP_NAME];
+const _startup=findScenario(getStartupName());
 if(_startup){ applyScenario(_startup); } else if(!load()){ applyDefaultMoves(); }
 migrateReadiness();V.forEach(v=>v.ready=normReady(v.ready));paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
