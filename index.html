@@ -2210,7 +2210,7 @@
         <span class="lgItem"><span class="rdyDot ok"></span>כשיר</span>
         <span class="lgItem"><span class="rdyDot lim"></span>מוגבל</span>
         <span class="lgItem"><span class="rdyDot off"></span>מושבת</span>
-        <span class="lgNote">מוצג בכל תא (מספר לפי סטטוס) · לעריכה — לחצו על מספר בתא</span>
+        <span class="lgNote">בתא מסומנים רק «מוגבל» ו«מושבת» (כשיר — ללא סימון) · לעריכה לחצו על מספר בתא</span>
       </div>
       <div class="tableWrap" id="scenarioTableWrap"></div>
     </section>
@@ -2291,6 +2291,8 @@ const CATCOLORS={
   "ציוד ואחר":{d:"#556173",bg:"#eaeff6"},'רק"ם':{d:"#3a4a63",bg:"#e7ebf2"}
 };
 const RDY=['כשיר','מוגבל','מושבת']; const RDY_CLS={'כשיר':'','מוגבל':'lim','מושבת':'off'};
+// normalize any readiness value to one of the 3 canonical statuses ("לא כשיר" => מושבת)
+function normReady(r){ if(r==='מוגבל')return 'מוגבל'; if(r==='מושבת'||r==='לא כשיר'||r==='לא-כשיר')return 'מושבת'; return 'כשיר'; }
 
 let VID=1; const V=[];
 // roster (from the authoritative צ׳ Excel) provides צ׳+note per unit+type, in order
@@ -2380,14 +2382,11 @@ function headerRows(){
 function fnLabel(u){if(u===POOL)return '<span class="fnm">'+ic('inbox')+esc(POOL)+'</span>';if(COMBAT.has(u))return '<span class="fnm">'+ic('shield')+esc(u)+'</span>';return esc(u);}
 function scenarioCell(u,t){
   const vs=inCell(u,t),n=vs.length,d=n-baseCount(u,t);
-  const lim=vs.filter(v=>v.ready==='מוגבל').length,off=vs.filter(v=>v.ready==='מושבת').length;
+  const lim=vs.filter(v=>normReady(v.ready)==='מוגבל').length,off=vs.filter(v=>normReady(v.ready)==='מושבת').length;
   let meta='';
   if(d!==0)meta+='<span class="delta '+(d>0?'pos':'neg')+'">'+(d>0?'+':'')+d+'</span>';
-  if(n>0){ if(off||lim){ const ok=n-off-lim;
-      if(off)meta+='<span class="rdyChip off" title="מושבת">'+off+'</span>';
-      if(lim)meta+='<span class="rdyChip lim" title="מוגבל">'+lim+'</span>';
-      if(ok>0)meta+='<span class="rdyChip ok" title="כשיר">'+ok+'</span>';
-    } else { meta+='<span class="rdyDot ok" title="כל '+n+' הכלים כשירים"></span>'; } }
+  if(off)meta+='<span class="rdyChip off">'+off+' מושבת</span>';
+  if(lim)meta+='<span class="rdyChip lim">'+lim+' מוגבל</span>';
   if(u!==POOL){const tg=targets[u]&&targets[u][t];if(tg!=null&&tg!==''){const df=n-tg;meta+='<span class="tchip '+(df<0?'def':(df>0?'sur':''))+'">יעד '+tg+(df<0?' ('+df+')':'')+'</span>';}}
   return '<td class="cell" data-u="'+esc(u)+'" data-t="'+esc(t)+'" draggable="true">'+
     '<div class="cellInner">'+
@@ -2473,7 +2472,7 @@ function renderDrawer(){
     '<div class="dlist" id="drList"></div>';
   const list=d.querySelector('#drList');
   if(!vs.length)list.innerHTML='<div class="empty">אין כלים בתא זה.</div>';
-  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,rc=RDY_CLS[v.ready]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top"><input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'><span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="לחצו לשינוי כשירות"><span class="dot"></span>'+esc(v.ready)+'</button><select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select></div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…">'+esc(v.note)+'</textarea></div>';}).join('');
+  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top"><input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'><span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="לחצו לשינוי כשירות"><span class="dot"></span>'+esc(nr)+'</button><select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select></div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…">'+esc(v.note)+'</textarea></div>';}).join('');
   d.querySelector('#drClose').addEventListener('click',closeDrawer);
   d.querySelector('#drMove').addEventListener('click',()=>{const to=d.querySelector('#drDest').value,ids=[...drawerSel];if(!ids.length)return;ids.forEach(id=>moveVehicle(id,to));toast(ids.length+' כלים הועברו ל־'+to,'good');closeDrawer();renderAll();});
   list.querySelectorAll('.chk').forEach(c=>c.addEventListener('change',e=>{const id=+e.target.getAttribute('data-vid');if(e.target.checked)drawerSel.add(id);else drawerSel.delete(id);updDrSel();}));
@@ -2574,7 +2573,7 @@ function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();
 migrateSavedScenarios();
 const _startup=savedScenarios()[STARTUP_NAME];
 if(_startup){ applyScenario(_startup); } else if(!load()){ applyDefaultMoves(); }
-migrateReadiness();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+migrateReadiness();V.forEach(v=>v.ready=normReady(v.ready));paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
 </body>
