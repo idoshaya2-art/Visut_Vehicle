@@ -2319,6 +2319,8 @@ function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r)
 // recover readiness (כשירות) edits orphaned under older versioned state keys
 function migrateReadiness(){try{for(let i=12;i>=1;i--){const raw=localStorage.getItem('vr_state_v'+i);if(!raw)continue;let o;try{o=JSON.parse(raw);}catch(e){continue;}if(!o||!o.v)continue;o.v.forEach(sv=>{if(sv&&sv.ready&&sv.ready!=='כשיר'){const v=byId(sv.id);if(v&&v.ready==='כשיר')v.ready=sv.ready;}});}save();}catch(e){}}
 function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[0],to=dm[1]; const v=V.find(x=>x.tsadi===ts); if(v&&v.unit!==to) moveVehicle(v.id,to); }); }
+const STARTUP_NAME='1'; // scenario shown on open
+function applyScenario(s){ V.forEach(v=>v.unit=v.base); (s.v||[]).forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;}); log=s.log?JSON.parse(JSON.stringify(s.log)):[]; targets=s.targets?JSON.parse(JSON.stringify(s.targets)):{}; save(); }
 function savedScenarios(){try{return JSON.parse(localStorage.getItem(LS_SAVED)||'{}');}catch(e){return {};}}
 function writeSaved(o){try{localStorage.setItem(LS_SAVED,JSON.stringify(o));}catch(e){}}
 // recover scenarios that were orphaned under older versioned keys, into the stable key
@@ -2569,7 +2571,10 @@ function exportCSV(){
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
 function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();renderTargets();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
-if(!load())applyDefaultMoves();migrateSavedScenarios();migrateReadiness();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+migrateSavedScenarios();
+const _startup=savedScenarios()[STARTUP_NAME];
+if(_startup){ applyScenario(_startup); } else if(!load()){ applyDefaultMoves(); }
+migrateReadiness();paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
 </body>
