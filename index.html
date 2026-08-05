@@ -2663,6 +2663,9 @@ function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('tru
 function renderAll(){renderScenario();renderBalance();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
 migrateSavedScenarios();
+// capture any local (non-כשיר) status edits BEFORE applyScenario's save() can clobber them
+const _localReady={};
+for(let _i=12;_i>=1;_i--){try{const _raw=localStorage.getItem('vr_state_v'+_i);if(_raw){const _o=JSON.parse(_raw);if(_o&&_o.v)_o.v.forEach(sv=>{if(sv&&sv.id!=null&&sv.ready&&sv.ready!=='כשיר'&&!(sv.id in _localReady))_localReady[sv.id]=sv.ready;});}}catch(e){}}
 (function(){
   // 1) explicit per-device startup override  2) universal embedded default  3) local "1"  4) working state / baseline
   let explicit=null; try{explicit=localStorage.getItem('vr_startup');}catch(e){}
@@ -2672,9 +2675,9 @@ migrateSavedScenarios();
   if(!done){const s1=findScenario('1'); if(s1){applyScenario(s1);done=true;}}
   if(!done && !load()) applyDefaultMoves();
 })();
-migrateReadiness();
-(function(){let hasLocal=false;try{hasLocal=!!localStorage.getItem(LS);}catch(e){}if(!hasLocal){V.forEach(v=>{const st=v.tsadi&&DEFAULT_READINESS[v.tsadi];if(st)v.ready=st;});}})();
-V.forEach(v=>v.ready=normReady(v.ready));paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+// readiness: embedded universal statuses as base, then local non-כשיר edits layered on top (always applied — survives reload)
+V.forEach(v=>{ if(v.tsadi&&DEFAULT_READINESS[v.tsadi]) v.ready=DEFAULT_READINESS[v.tsadi]; if(_localReady[v.id]) v.ready=_localReady[v.id]; v.ready=normReady(v.ready); });
+paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
 </body>
