@@ -1872,6 +1872,18 @@
    "705467",
    "8110"
   ]
+ ],
+ "extraVehicles": [
+  [
+   "מפח\"ט",
+   "מלגזות חוץ",
+   "210345"
+  ],
+  [
+   "מפח\"ט",
+   "מלגזות חוץ",
+   "949734"
+  ]
  ]
 }
 </script>
@@ -2305,6 +2317,8 @@ let VID=1; const V=[];
 // roster (from the authoritative צ׳ Excel) provides צ׳+note per unit+type, in order
 const ROSTER_Q={}; (DATA.roster||[]).forEach(r=>{ const k=r[0]+'|'+r[1]; (ROSTER_Q[k]=ROSTER_Q[k]||[]).push({tsadi:r[2]||'',note:r[3]||''}); });
 TYPES.forEach(type=>{ const row=DATA.matrix[type]||[]; MUNITS.forEach((u,i)=>{ const n=row[i]||0; const q=ROSTER_Q[u+'|'+type]||[]; for(let k=0;k<n;k++){ const info=q[k]||{}; V.push({id:VID++,type,base:u,unit:u,tsadi:info.tsadi||'',note:info.note||'',ready:'כשיר'}); } }); });
+// extra vehicles appended with fixed high IDs (keeps existing IDs stable across data additions)
+(DATA.extraVehicles||[]).forEach((e,i)=>{ V.push({id:900001+i,type:e[1],base:e[0],unit:e[0],tsadi:e[2]||'',note:e[3]||'',ready:'כשיר'}); });
 const TYPE_TOTAL={}; TYPES.forEach(t=>TYPE_TOTAL[t]=V.filter(v=>v.type===t).length);
 
 let log=[]; let targets={};
