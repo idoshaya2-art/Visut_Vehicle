@@ -2195,7 +2195,6 @@
 </header>
 
 <div class="surplus" id="surplus"></div>
-<div class="transferBar" id="transferBar"></div>
 
 <div class="layout">
   <div class="main">
@@ -2358,11 +2357,11 @@ function renderSurplus(){
   const bad=TYPES.filter(t=>curTotal(t)!==TYPE_TOTAL[t]);
   const inPool=TYPES.filter(t=>poolCount(t)>0);
   let chips;
-  if(inPool.length)chips='<div class="poolChips">'+inPool.map(t=>'<button class="pchip" data-type="'+esc(t)+'"><span class="n">'+poolCount(t)+'</span><span class="meta"><span class="t">'+esc(t)+'</span><span class="go">'+ic('arrowLeft')+'שבץ למסגרת</span></span></button>').join('')+'</div>';
+  if(inPool.length)chips='<div class="poolChips">'+inPool.map(t=>'<button class="pchip" data-type="'+esc(t)+'"><span class="n">'+poolCount(t)+'</span><span class="meta"><span class="t">'+esc(t)+'</span><span class="go">'+ic('list')+'פתח לעדכון סטטוס / שיבוץ</span></span></button>').join('')+'</div>';
   else chips='<div class="poolEmpty">'+ic('inbox')+'<span>אין כלים מחוץ לספירה. אפשר להוציא כלי מתא כלשהו לכאן (במגירת התא, בבחירת יעד «כלים מחוץ לספירה», או בכפתור −) — למשל כלים מושבתים/מפונים שלא נספרים במסגרת.</span></div>';
   const bal=bad.length?'<span class="balance bad">'+ic('alert')+'שימור הופר: '+esc(bad[0])+'</span>':'<span class="balance ok">'+ic('check')+'מלאי מאוזן ('+V.length+' כלים)</span>';
-  el.innerHTML='<div class="sh"><span class="ttl">'+ic('inbox')+'כלים מחוץ לספירה</span><span class="note">כלים שהוצאו מהספירה — לחצו על סוג כדי לשבץ חזרה, או על המספר בשורה כדי לעדכן סטטוס</span>'+bal+'</div>'+chips;
-  el.querySelectorAll('.pchip').forEach(c=>c.addEventListener('click',()=>presetTransfer(c.getAttribute('data-type'),POOL)));
+  el.innerHTML='<div class="sh"><span class="ttl">'+ic('inbox')+'כלים מחוץ לספירה</span><span class="note">כלים שהוצאו מהספירה — לחצו על סוג כדי לפתוח את רשימת הכלים, לעדכן סטטוס/הערות או לשבץ חזרה למסגרת</span>'+bal+'</div>'+chips;
+  el.querySelectorAll('.pchip').forEach(c=>c.addEventListener('click',()=>openDrawer(POOL,c.getAttribute('data-type'))));
 }
 
 function renderTransferBar(){
@@ -2575,7 +2574,7 @@ function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();
 migrateSavedScenarios();
 const _startup=findScenario(getStartupName());
 if(_startup){ applyScenario(_startup); } else if(!load()){ applyDefaultMoves(); }
-migrateReadiness();V.forEach(v=>v.ready=normReady(v.ready));paintStaticIcons();renderTransferBar();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+migrateReadiness();V.forEach(v=>v.ready=normReady(v.ready));paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
 </body>
