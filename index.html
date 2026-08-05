@@ -2204,6 +2204,8 @@
       <button class="btn ghost" id="btnSave" data-ic="save">שמור</button>
       <button class="btn ghost" id="btnDelSaved" data-ic="trash">מחק</button>
       <button class="btn ghost" id="btnStartup" data-ic="star">קבע כפתיחה</button>
+      <button class="btn ghost" id="btnBackup" data-ic="download">גיבוי</button>
+      <button class="btn ghost" id="btnRestore" data-ic="upload">שחזור</button>
       <span class="sep"></span>
       <button class="btn primary" id="btnCsv" data-ic="download">ייצוא Excel</button>
       <button class="btn" id="btnPrint" data-ic="printer">PDF</button>
@@ -2585,6 +2587,8 @@ document.getElementById('btnSave').addEventListener('click',()=>{const n=prompt(
 document.getElementById('btnLoad').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}const s=savedScenarios()[n];if(!s)return;if(!confirm('לטעון «'+n+'»? הוויסות הנוכחי יוחלף.'))return;s.v.forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;});log=s.log||[];targets=s.targets||{};save();renderAll();toast('נטען: '+n,'good');});
 document.getElementById('btnDelSaved').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}if(!confirm('למחוק «'+n+'»?'))return;const o=savedScenarios();delete o[n];writeSaved(o);if(getStartupName()===n)setStartupName('');refreshSavedSel();toast('נמחק','good');});
 document.getElementById('btnStartup').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש מהרשימה כדי לקבוע אותו כתרחיש הפתיחה','err');return;}if(!savedScenarios()[n]){toast('תרחיש לא קיים','err');return;}setStartupName(n);refreshSavedSel();toast('«'+n+'» ייפתח אוטומטית בכל פתיחה ★','good');});
+document.getElementById('btnBackup').addEventListener('click',()=>{const scn=savedScenarios();const payload={type:'visut-scenarios',v:1,startup:getStartupName(),scenarios:scn,ts:Date.now()};const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='תרחישים-וויסות-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();toast('גיבוי ירד — '+Object.keys(scn).length+' תרחישים. העבירו את הקובץ למכשיר השני ולחצו «שחזור».','good');});
+document.getElementById('btnRestore').addEventListener('click',()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o||!o.scenarios)throw 0;const cur=savedScenarios();let n=0;Object.keys(o.scenarios).forEach(k=>{cur[k]=o.scenarios[k];n++;});writeSaved(cur);if(o.startup)setStartupName(o.startup);refreshSavedSel();toast(n+' תרחישים שוחזרו — טוען מחדש…','good');setTimeout(()=>location.reload(),800);}catch(e){toast('קובץ גיבוי לא תקין','err');}};rd.readAsText(f,'utf-8');};inp.click();});
 document.getElementById('btnUndo').addEventListener('click',undoLast);
 document.getElementById('btnClearLog').addEventListener('click',()=>{if(!log.length){toast('הלוג ריק','err');return;}if(!confirm('לנקות לוג ולהחזיר לבסיס?'))return;resetScenario();save();renderAll();toast('נוקה','good');});
 document.getElementById('btnToggleBase').addEventListener('click',()=>{baseOpen=!baseOpen;document.getElementById('baselineTableWrap').style.display=baseOpen?'block':'none';});
