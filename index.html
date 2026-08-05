@@ -2524,7 +2524,12 @@ function importTsadi(text){
 
 function bindScenario(){
   const w=document.getElementById('scenarioTableWrap');
-  w.addEventListener('click',e=>{const b=e.target.closest('[data-action]');if(!b)return;e.stopPropagation();const a=b.getAttribute('data-action'),u=b.getAttribute('data-u'),t=b.getAttribute('data-t');if(a==='open'){if(!b.disabled)openDrawer(u,t);}else if(a==='plus')openChooser(b,u,t,'plus');else if(a==='minus')openChooser(b,u,t,'minus');});
+  w.addEventListener('click',e=>{
+    const stp=e.target.closest('button.stp[data-action]');
+    if(stp){e.stopPropagation();const a=stp.getAttribute('data-action'),u=stp.getAttribute('data-u'),t=stp.getAttribute('data-t');if(a==='plus')openChooser(stp,u,t,'plus');else if(a==='minus')openChooser(stp,u,t,'minus');return;}
+    const cell=e.target.closest('.cell');
+    if(cell){e.stopPropagation();const u=cell.getAttribute('data-u'),t=cell.getAttribute('data-t');if(count(u,t)>0)openDrawer(u,t);}
+  });
   let drag=null;
   w.addEventListener('dragstart',e=>{const c=e.target.closest('.cell[draggable=true]');if(!c)return;drag={u:c.getAttribute('data-u'),t:c.getAttribute('data-t')};c.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','x');}catch(x){}});
   w.addEventListener('dragend',()=>{w.querySelectorAll('.dragging,.dropok').forEach(c=>c.classList.remove('dragging','dropok'));drag=null;});
