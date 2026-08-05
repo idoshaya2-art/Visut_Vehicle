@@ -2220,7 +2220,6 @@
     </section>
 
     <section class="card" id="flowsCard"></section>
-    <section class="panel" id="targetsPanel"></section>
 
     <section class="card" id="baselineCard">
       <div class="cardHead"><h2 data-ic="lock">טבלת בסיס</h2><span class="lock" data-ic="lock">נעולה — מקור אמת</span><span class="spacer"></span><button class="btn ghost" id="btnToggleBase">הצג / הסתר</button></div>
@@ -2282,7 +2281,9 @@ const P={
 function ic(n,cls){return '<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(P[n]||'')+'</svg>';}
 
 const DATA=JSON.parse(document.getElementById('data').textContent);
-const POOL='מאגר עודפים';
+const POOL='כלים מחוץ לספירה';
+const OLD_POOL='מאגר עודפים'; // legacy name — map saved unit values forward
+function normUnit(u){return u===OLD_POOL?POOL:u;}
 const UNITS=DATA.units, MUNITS=DATA.matrixUnits, UNITS_ALL=[POOL].concat(UNITS);
 const COMBAT=new Set(DATA.combat);
 const TYPES=DATA.typeOrder, TYPE_CAT=DATA.typeCat;
@@ -2322,7 +2323,7 @@ function tabTypes(){return tabCats().flatMap(c=>TYPES.filter(t=>TYPE_CAT[t]===c)
 let toastTimer;function toast(m,t){const el=document.getElementById('toast');el.innerHTML=(t==='err'?ic('alert'):t==='good'?ic('check'):'')+'<span>'+esc(m)+'</span>';el.className='toast show'+(t?' '+t:'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',2600);}
 
 function save(){try{localStorage.setItem(LS,JSON.stringify({v:V.map(v=>({id:v.id,unit:v.unit,tsadi:v.tsadi,note:v.note,ready:v.ready})),log,targets}));}catch(e){}}
-function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r);if(o&&o.v){o.v.forEach(sv=>{const v=byId(sv.id);if(v){v.unit=sv.unit;if(sv.tsadi)v.tsadi=sv.tsadi;if(sv.note)v.note=sv.note;v.ready=sv.ready||'כשיר';}});log=o.log||[];targets=o.targets||{};return true;}}}catch(e){}return false;}
+function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r);if(o&&o.v){o.v.forEach(sv=>{const v=byId(sv.id);if(v){v.unit=normUnit(sv.unit);if(sv.tsadi)v.tsadi=sv.tsadi;if(sv.note)v.note=sv.note;v.ready=sv.ready||'כשיר';}});log=o.log||[];targets=o.targets||{};return true;}}}catch(e){}return false;}
 // recover readiness (כשירות) edits orphaned under older versioned state keys
 function migrateReadiness(){try{for(let i=12;i>=1;i--){const raw=localStorage.getItem('vr_state_v'+i);if(!raw)continue;let o;try{o=JSON.parse(raw);}catch(e){continue;}if(!o||!o.v)continue;o.v.forEach(sv=>{if(sv&&sv.ready&&sv.ready!=='כשיר'){const v=byId(sv.id);if(v&&v.ready==='כשיר')v.ready=sv.ready;}});}save();}catch(e){}}
 function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[0],to=dm[1]; const v=V.find(x=>x.tsadi===ts); if(v&&v.unit!==to) moveVehicle(v.id,to); }); }
@@ -2330,7 +2331,7 @@ function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[
 function getStartupName(){try{const s=localStorage.getItem('vr_startup');if(s!=null)return s;}catch(e){}return '1';}
 function setStartupName(name){try{if(name)localStorage.setItem('vr_startup',name);else localStorage.removeItem('vr_startup');}catch(e){}}
 function findScenario(name){const o=savedScenarios();if(o[name])return o[name];const key=Object.keys(o).find(k=>k.trim()===String(name).trim());return key?o[key]:null;}
-function applyScenario(s){ V.forEach(v=>v.unit=v.base); (s.v||[]).forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;}); log=s.log?JSON.parse(JSON.stringify(s.log)):[]; targets=s.targets?JSON.parse(JSON.stringify(s.targets)):{}; save(); }
+function applyScenario(s){ V.forEach(v=>v.unit=v.base); (s.v||[]).forEach(sv=>{const v=byId(sv.id);if(v)v.unit=normUnit(sv.unit);}); log=s.log?JSON.parse(JSON.stringify(s.log)):[]; targets=s.targets?JSON.parse(JSON.stringify(s.targets)):{}; save(); }
 function savedScenarios(){try{return JSON.parse(localStorage.getItem(LS_SAVED)||'{}');}catch(e){return {};}}
 function writeSaved(o){try{localStorage.setItem(LS_SAVED,JSON.stringify(o));}catch(e){}}
 // recover scenarios that were orphaned under older versioned keys, into the stable key
@@ -2357,10 +2358,10 @@ function renderSurplus(){
   const bad=TYPES.filter(t=>curTotal(t)!==TYPE_TOTAL[t]);
   const inPool=TYPES.filter(t=>poolCount(t)>0);
   let chips;
-  if(inPool.length)chips='<div class="poolChips">'+inPool.map(t=>'<button class="pchip" data-type="'+esc(t)+'"><span class="n">'+poolCount(t)+'</span><span class="meta"><span class="t">'+esc(t)+'</span><span class="go">'+ic('arrowLeft')+'חלק מהמאגר</span></span></button>').join('')+'</div>';
-  else chips='<div class="poolEmpty">'+ic('inbox')+'<span>המאגר ריק. פנו כלים מתא כלשהו אל «מאגר עודפים» (במגירת התא או ב־−) כדי לרכז אותם לחלוקה — וכאן תמיד תראו כמה נותר לחלק מכל סוג.</span></div>';
+  if(inPool.length)chips='<div class="poolChips">'+inPool.map(t=>'<button class="pchip" data-type="'+esc(t)+'"><span class="n">'+poolCount(t)+'</span><span class="meta"><span class="t">'+esc(t)+'</span><span class="go">'+ic('arrowLeft')+'שבץ למסגרת</span></span></button>').join('')+'</div>';
+  else chips='<div class="poolEmpty">'+ic('inbox')+'<span>אין כלים מחוץ לספירה. אפשר להוציא כלי מתא כלשהו לכאן (במגירת התא, בבחירת יעד «כלים מחוץ לספירה», או בכפתור −) — למשל כלים מושבתים/מפונים שלא נספרים במסגרת.</span></div>';
   const bal=bad.length?'<span class="balance bad">'+ic('alert')+'שימור הופר: '+esc(bad[0])+'</span>':'<span class="balance ok">'+ic('check')+'מלאי מאוזן ('+V.length+' כלים)</span>';
-  el.innerHTML='<div class="sh"><span class="ttl">'+ic('zap')+'עודף לחלוקה</span><span class="note">כמה זמין כרגע מכל סוג במאגר</span>'+bal+'</div>'+chips;
+  el.innerHTML='<div class="sh"><span class="ttl">'+ic('inbox')+'כלים מחוץ לספירה</span><span class="note">כלים שהוצאו מהספירה — לחצו על סוג כדי לשבץ חזרה, או על המספר בשורה כדי לעדכן סטטוס</span>'+bal+'</div>'+chips;
   el.querySelectorAll('.pchip').forEach(c=>c.addEventListener('click',()=>presetTransfer(c.getAttribute('data-type'),POOL)));
 }
 
@@ -2394,7 +2395,6 @@ function scenarioCell(u,t){
   let meta='';
   if(off)meta+='<span class="rdyChip off">'+off+' מושבת</span>';
   if(lim)meta+='<span class="rdyChip lim">'+lim+' מוגבל</span>';
-  if(u!==POOL){const tg=targets[u]&&targets[u][t];if(tg!=null&&tg!==''){const df=n-tg;meta+='<span class="tchip '+(df<0?'def':(df>0?'sur':''))+'">יעד '+tg+(df<0?' ('+df+')':'')+'</span>';}}
   const deltaHtml=(d!==0)?'<span class="cellDelta '+(d>0?'pos':'neg')+'" title="שינוי מול הבסיס">'+(d>0?'+':'')+d+'</span>':'';
   return '<td class="cell" data-u="'+esc(u)+'" data-t="'+esc(t)+'" draggable="true">'+
     '<div class="cellInner">'+deltaHtml+
@@ -2577,7 +2577,7 @@ function exportCSV(){
 }
 
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
-function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();renderTargets();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
+function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
 migrateSavedScenarios();
 const _startup=findScenario(getStartupName());
