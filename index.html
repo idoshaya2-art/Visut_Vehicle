@@ -2190,6 +2190,10 @@
   .popover button.opt .c{opacity:.6;font-size:11px;font-variant-numeric:tabular-nums}
   .popover .none{font-size:12px;color:var(--muted);padding:8px 10px}
 
+  .hdrBalance{font-size:12.5px;font-weight:700;padding:6px 13px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;background:var(--pos-bg);color:var(--pos);white-space:nowrap;font-family:"Rubik",sans-serif}
+  .hdrBalance.bad{background:var(--neg-bg);color:var(--neg)}
+  .hdrBalance .ic{width:15px;height:15px}
+  @media(max-width:760px){.hdrBalance{order:5}}
   .toast{position:fixed;bottom:24px;inset-inline-start:50%;transform:translateX(50%) translateY(8px);background:#0f172a;color:#fff;padding:13px 22px;border-radius:12px;font-weight:700;box-shadow:var(--sh-lg);z-index:200;opacity:0;transition:.25s;pointer-events:none;max-width:82vw;text-align:center;display:flex;align-items:center;gap:9px}
   .toast.show{opacity:1;transform:translateX(50%) translateY(0)}
   .toast.err{background:#a83232}.toast.good{background:#127a3b}.toast .ic{width:18px;height:18px}
@@ -2206,11 +2210,11 @@
     <div class="brand"><div class="logo" id="logoBox"></div>
       <div><h1>וויסות רכבים חטיבתי</h1><div class="sub">פיזור מחדש לפי מספר צ׳ · שימור מלאי אוטומטי · תיעוד תנועות חי</div></div>
     </div>
+    <span class="hdrBalance" id="balanceChip"></span>
     <div class="toolbar">
       <button class="btn" id="btnTsadi" data-ic="hash">מסך צ׳ מלא</button>
       <button class="btn" id="btnImport" data-ic="upload">ייבוא צ׳</button>
       <span class="sep"></span>
-      <button class="btn" id="btnExample" data-ic="shuffle">תרחיש דוגמה</button>
       <button class="btn danger" id="btnReset" data-ic="reset">איפוס</button>
       <span class="sep"></span>
       <select class="sel" id="savedSel"><option value="">— תרחישים שמורים —</option></select>
@@ -2218,16 +2222,12 @@
       <button class="btn ghost" id="btnSave" data-ic="save">שמור</button>
       <button class="btn ghost" id="btnDelSaved" data-ic="trash">מחק</button>
       <button class="btn ghost" id="btnStartup" data-ic="star">קבע כפתיחה</button>
-      <button class="btn ghost" id="btnBackup" data-ic="download">גיבוי</button>
-      <button class="btn ghost" id="btnRestore" data-ic="upload">שחזור</button>
       <span class="sep"></span>
       <button class="btn primary" id="btnCsv" data-ic="download">ייצוא Excel</button>
       <button class="btn" id="btnPrint" data-ic="printer">PDF</button>
     </div>
   </div>
 </header>
-
-<div class="surplus" id="surplus"></div>
 
 <div class="layout">
   <div class="main">
@@ -2391,16 +2391,11 @@ function computeFlows(){
 }
 function flowsText(){return computeFlows().map(f=>f.from+' נותן '+f.qty+' '+f.type+' ל־'+f.to+' (צ׳ '+f.tsadis.join(', ')+')').join('\n');}
 
-function renderSurplus(){
-  const el=document.getElementById('surplus');
+function renderBalance(){
+  const el=document.getElementById('balanceChip');if(!el)return;
   const bad=TYPES.filter(t=>curTotal(t)!==TYPE_TOTAL[t]);
-  const inPool=TYPES.filter(t=>poolCount(t)>0);
-  let chips;
-  if(inPool.length)chips='<div class="poolChips">'+inPool.map(t=>'<button class="pchip" data-type="'+esc(t)+'"><span class="n">'+poolCount(t)+'</span><span class="meta"><span class="t">'+esc(t)+'</span><span class="go">'+ic('list')+'פתח לעדכון סטטוס / שיבוץ</span></span></button>').join('')+'</div>';
-  else chips='<div class="poolEmpty">'+ic('inbox')+'<span>אין כלים מחוץ לספירה. אפשר להוציא כלי מתא כלשהו לכאן (במגירת התא, בבחירת יעד «כלים מחוץ לספירה», או בכפתור −) — למשל כלים מושבתים/מפונים שלא נספרים במסגרת.</span></div>';
-  const bal=bad.length?'<span class="balance bad">'+ic('alert')+'שימור הופר: '+esc(bad[0])+'</span>':'<span class="balance ok">'+ic('check')+'מלאי מאוזן ('+V.length+' כלים)</span>';
-  el.innerHTML='<div class="sh"><span class="ttl">'+ic('inbox')+'כלים מחוץ לספירה</span><span class="note">כלים שהוצאו מהספירה — לחצו על סוג כדי לפתוח את רשימת הכלים, לעדכן סטטוס/הערות או לשבץ חזרה למסגרת</span>'+bal+'</div>'+chips;
-  el.querySelectorAll('.pchip').forEach(c=>c.addEventListener('click',()=>openDrawer(POOL,c.getAttribute('data-type'))));
+  if(bad.length){el.className='hdrBalance bad';el.innerHTML=ic('alert')+'שימור הופר: '+esc(bad[0]);}
+  else{el.className='hdrBalance';el.innerHTML=ic('check')+'מלאי מאוזן ('+V.length+' כלים)';}
 }
 
 function renderTransferBar(){
@@ -2610,13 +2605,10 @@ document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.cl
 function refreshSavedSel(){const s=document.getElementById('savedSel'),o=savedScenarios(),n=Object.keys(o),su=getStartupName();s.innerHTML='<option value="">— תרחישים שמורים ('+n.length+') —</option>'+n.map(x=>'<option value="'+esc(x)+'">'+esc(x)+(x===su?' ★ פתיחה':'')+'</option>').join('');}
 function resetScenario(){V.forEach(v=>v.unit=v.base);log=[];}
 document.getElementById('btnReset').addEventListener('click',()=>{if(!confirm('לאפס את הוויסות לבסיס? הלוג יימחק (הצ׳ וההערות יישמרו).'))return;resetScenario();save();renderAll();toast('אופס לבסיס','good');});
-document.getElementById('btnExample').addEventListener('click',()=>{if(!confirm('לטעון תרחיש דוגמה? גדס"ר מחלק האמרי סיור: 2→7020, 2→8110, 2→8111, 1→גדס"מ, 4→מפח"ט.'))return;resetScenario();[['7020',2],['8110',2],['8111',2],['גדס"מ',1],['מפח"ט',4]].forEach(x=>moveQty('האמר סיור','גדס"ר',x[0],x[1]));save();renderAll();toast('נטען תרחיש הדוגמה','good');});
 document.getElementById('btnSave').addEventListener('click',()=>{const n=prompt('שם לתרחיש:','תרחיש '+new Date().toLocaleString('he-IL'));if(!n)return;const o=savedScenarios();o[n]={v:V.map(v=>({id:v.id,unit:v.unit})),log,targets};writeSaved(o);refreshSavedSel();toast('נשמר: '+n,'good');});
 document.getElementById('btnLoad').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}const s=savedScenarios()[n];if(!s)return;if(!confirm('לטעון «'+n+'»? הוויסות הנוכחי יוחלף.'))return;s.v.forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;});log=s.log||[];targets=s.targets||{};save();renderAll();toast('נטען: '+n,'good');});
 document.getElementById('btnDelSaved').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}if(!confirm('למחוק «'+n+'»?'))return;const o=savedScenarios();delete o[n];writeSaved(o);if(getStartupName()===n)setStartupName('');refreshSavedSel();toast('נמחק','good');});
 document.getElementById('btnStartup').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש מהרשימה כדי לקבוע אותו כתרחיש הפתיחה','err');return;}if(!savedScenarios()[n]){toast('תרחיש לא קיים','err');return;}setStartupName(n);refreshSavedSel();toast('«'+n+'» ייפתח אוטומטית בכל פתיחה ★','good');});
-document.getElementById('btnBackup').addEventListener('click',()=>{const scn=savedScenarios();const payload={type:'visut-scenarios',v:1,startup:getStartupName(),scenarios:scn,ts:Date.now()};const blob=new Blob([JSON.stringify(payload)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='תרחישים-וויסות-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();a.remove();toast('גיבוי ירד — '+Object.keys(scn).length+' תרחישים. העבירו את הקובץ למכשיר השני ולחצו «שחזור».','good');});
-document.getElementById('btnRestore').addEventListener('click',()=>{const inp=document.createElement('input');inp.type='file';inp.accept='.json,application/json';inp.onchange=()=>{const f=inp.files&&inp.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const o=JSON.parse(rd.result);if(!o||!o.scenarios)throw 0;const cur=savedScenarios();let n=0;Object.keys(o.scenarios).forEach(k=>{cur[k]=o.scenarios[k];n++;});writeSaved(cur);if(o.startup)setStartupName(o.startup);refreshSavedSel();toast(n+' תרחישים שוחזרו — טוען מחדש…','good');setTimeout(()=>location.reload(),800);}catch(e){toast('קובץ גיבוי לא תקין','err');}};rd.readAsText(f,'utf-8');};inp.click();});
 document.getElementById('btnUndo').addEventListener('click',undoLast);
 document.getElementById('btnClearLog').addEventListener('click',()=>{if(!log.length){toast('הלוג ריק','err');return;}if(!confirm('לנקות לוג ולהחזיר לבסיס?'))return;resetScenario();save();renderAll();toast('נוקה','good');});
 document.getElementById('btnToggleBase').addEventListener('click',()=>{baseOpen=!baseOpen;document.getElementById('baselineTableWrap').style.display=baseOpen?'block':'none';});
@@ -2667,7 +2659,7 @@ function exportCSV(){
 }
 
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
-function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
+function renderAll(){renderScenario();renderBalance();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
 migrateSavedScenarios();
 (function(){
