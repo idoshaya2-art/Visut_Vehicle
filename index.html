@@ -2205,7 +2205,7 @@
       <button class="btn ghost" id="btnDelSaved" data-ic="trash">מחק</button>
       <button class="btn ghost" id="btnStartup" data-ic="star">קבע כפתיחה</button>
       <span class="sep"></span>
-      <button class="btn primary" id="btnCsv" data-ic="download">CSV</button>
+      <button class="btn primary" id="btnCsv" data-ic="download">ייצוא Excel</button>
       <button class="btn" id="btnPrint" data-ic="printer">PDF</button>
     </div>
   </div>
@@ -2528,8 +2528,7 @@ function exportTsadiCSV(){
   rows.sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]||(a.tsadi||'').localeCompare(b.tsadi||''));
   const data=[['מסגרת','צ׳','סוג רכב','כשירות','הערה','מקור (אם הועבר)']];
   rows.forEach(v=>data.push([v.unit,v.tsadi,v.type,normReady(v.ready),v.note,(v.unit!==v.base?v.base:'')]));
-  const csv='﻿'+data.map(r=>r.map(c=>{const s=String(c==null?'':c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\r\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='רשימת-צ-כלים-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();toast('קובץ צ׳ יוצא ('+rows.length+' כלים)','good');
+  downloadXlsx('רשימת-צ-כלים-'+new Date().toISOString().slice(0,10)+'.xlsx','רשימת צ׳',data);toast('קובץ Excel יוצא — '+rows.length+' כלים (RTL)','good');
 }
 
 function openImport(){
@@ -2587,6 +2586,36 @@ document.getElementById('btnImport').addEventListener('click',openImport);
 document.getElementById('btnPrint').addEventListener('click',()=>window.print());
 document.getElementById('btnCsv').addEventListener('click',exportCSV);
 
+/* ---------- minimal in-browser XLSX writer (RTL sheet) ---------- */
+const _CRC=(()=>{const t=[];for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1);t[n]=c>>>0;}return t;})();
+function _crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=_CRC[(c^b[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function _zip(files){const enc=new TextEncoder();const u16=n=>[n&255,(n>>8)&255];const u32=n=>[n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  const parts=[],central=[];let off=0;
+  files.forEach(f=>{const nb=enc.encode(f.name),crc=_crc32(f.data),sz=f.data.length;
+    const lh=[].concat([0x50,0x4b,3,4],u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0));
+    parts.push(new Uint8Array(lh),nb,f.data);
+    const ch=[].concat([0x50,0x4b,1,2],u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(crc),u32(sz),u32(sz),u16(nb.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(off));
+    central.push(new Uint8Array(ch),nb);off+=lh.length+nb.length+sz;});
+  let cs=0;central.forEach(a=>cs+=a.length);
+  const end=[].concat([0x50,0x4b,5,6],u16(0),u16(0),u16(files.length),u16(files.length),u32(cs),u32(off),u16(0));
+  const all=parts.concat(central,[new Uint8Array(end)]);let tot=0;all.forEach(a=>tot+=a.length);
+  const out=new Uint8Array(tot);let p=0;all.forEach(a=>{out.set(a,p);p+=a.length;});return out;}
+function _col(n){let s='';n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;}
+function _xesc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function downloadXlsx(filename,sheetName,rows){
+  const enc=new TextEncoder();
+  let sd='';rows.forEach((r,ri)=>{sd+='<row r="'+(ri+1)+'">';(r||[]).forEach((c,ci)=>{sd+='<c r="'+_col(ci)+(ri+1)+'" t="inlineStr"><is><t xml:space="preserve">'+_xesc(c)+'</t></is></c>';});sd+='</row>';});
+  const sheet='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1" tabSelected="1" workbookViewId="0"/></sheetViews><sheetData>'+sd+'</sheetData></worksheet>';
+  const files=[
+    {name:'[Content_Types].xml',data:enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>')},
+    {name:'_rels/.rels',data:enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')},
+    {name:'xl/workbook.xml',data:enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="'+_xesc(sheetName).slice(0,31)+'" sheetId="1" r:id="rId1"/></sheets></workbook>')},
+    {name:'xl/_rels/workbook.xml.rels',data:enc.encode('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>')},
+    {name:'xl/worksheets/sheet1.xml',data:enc.encode(sheet)}
+  ];
+  const blob=new Blob([_zip(files)],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();
+}
 function exportCSV(){
   const rows=[['וויסות רכבים — מטריצת תרחיש'],['מסגרת',...TYPES]];
   UNITS_ALL.forEach(u=>rows.push([u,...TYPES.map(t=>count(u,t))]));
@@ -2594,9 +2623,8 @@ function exportCSV(){
   rows.push(['סיכום הוויסות — מי מוסר למי'],['מוסר','מקבל','סוג רכב','כמות','צ׳']);
   computeFlows().forEach(f=>rows.push([f.from,f.to,f.type,f.qty,f.tsadis.join(' ')]));
   rows.push([],['רשימת כלים מלאה'],['מסגרת נוכחית','מסגרת בסיס','סוג רכב','צ׳','כשירות','הערה']);
-  V.slice().sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]).forEach(v=>rows.push([v.unit,v.base,v.type,v.tsadi,v.ready,v.note]));
-  const csv='﻿'+rows.map(r=>r.map(c=>{const s=String(c==null?'':c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\r\n');
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='וויסות-רכבים-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();toast('CSV יוצא','good');
+  V.slice().sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]).forEach(v=>rows.push([v.unit,v.base,v.type,v.tsadi,normReady(v.ready),v.note]));
+  downloadXlsx('וויסות-רכבים-'+new Date().toISOString().slice(0,10)+'.xlsx','וויסות רכבים',rows);toast('קובץ Excel יוצא (RTL)','good');
 }
 
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
