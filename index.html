@@ -2134,6 +2134,20 @@
   #tsadiScreen .tsh h2{margin:0;font-size:18px;font-weight:700;display:flex;align-items:center;gap:9px}
   #tsadiScreen .tsh h2 .ic{color:var(--brand)}
   #tsadiFilters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-inline-start:auto}
+  .tsTotal{font-size:13px;font-weight:700;color:var(--brand-ink);background:var(--brand-soft);padding:6px 13px;border-radius:999px}
+  .tsTotal b{font-family:"Rubik",sans-serif;font-size:15px}
+  .ms{position:relative;display:inline-block}
+  .ms .msBtn{font-family:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe;cursor:pointer;font-weight:700;color:var(--ink2);white-space:nowrap}
+  .ms .msBtn.active{background:var(--brand-soft);border-color:#cfdcf6;color:var(--brand-ink)}
+  .ms.open .msBtn{border-color:var(--brand2);box-shadow:0 0 0 3px var(--brand-soft)}
+  .ms .msPanel{display:none;position:absolute;top:calc(100% + 6px);inset-inline-start:0;z-index:70;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh-lg);padding:9px;min-width:210px;max-height:340px;overflow:auto}
+  .ms.open .msPanel{display:block}
+  .msActions{display:flex;gap:7px;margin-bottom:7px;border-bottom:1px solid var(--line2);padding-bottom:7px}
+  .msActions button{flex:1;font-family:inherit;font-size:11.5px;padding:6px;border:1px solid var(--line);background:#f6f9fd;border-radius:8px;cursor:pointer;font-weight:700;color:var(--ink2)}
+  .msActions button:hover{background:var(--brand-soft);color:var(--brand-ink)}
+  .msItem{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;font-size:13px;cursor:pointer;font-weight:600;color:var(--ink2)}
+  .msItem:hover{background:#f6f9fd}
+  .msItem input{width:16px;height:16px;accent-color:var(--brand);cursor:pointer}
   #tsadiFilters select,#tsadiFilters input{font-family:inherit;font-size:13px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
   #tsadiFilters input{min-width:150px}
   .tsBody{flex:1;overflow:auto;padding:18px 24px}
@@ -2349,6 +2363,9 @@ function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r)
 function migrateReadiness(){try{for(let i=12;i>=1;i--){const raw=localStorage.getItem('vr_state_v'+i);if(!raw)continue;let o;try{o=JSON.parse(raw);}catch(e){continue;}if(!o||!o.v)continue;o.v.forEach(sv=>{if(sv&&sv.ready&&sv.ready!=='כשיר'){const v=byId(sv.id);if(v&&v.ready==='כשיר')v.ready=sv.ready;}});}save();}catch(e){}}
 function applyDefaultMoves(){ (DATA.defaultMoves||[]).forEach(dm=>{ const ts=dm[0],to=dm[1]; const v=V.find(x=>x.tsadi===ts); if(v&&v.unit!==to) moveVehicle(v.id,to); }); }
 // which saved scenario opens on load (user-set; defaults to "1")
+// Universal default scenario embedded in the file — loads on ANY device that has no explicit local startup override.
+// Fill with a backup's scenario object: {v:[{id,unit},...], log:[...], targets:{}}
+const DEFAULT_SCENARIO=null;
 function getStartupName(){try{const s=localStorage.getItem('vr_startup');if(s!=null)return s;}catch(e){}return '1';}
 function setStartupName(name){try{if(name)localStorage.setItem('vr_startup',name);else localStorage.removeItem('vr_startup');}catch(e){}}
 function findScenario(name){const o=savedScenarios();if(o[name])return o[name];const key=Object.keys(o).find(k=>k.trim()===String(name).trim());return key?o[key]:null;}
@@ -2502,37 +2519,48 @@ function renderDrawer(){
 }
 function updDrSel(){const d=document.getElementById('drawer'),n=drawerSel.size,b=d.querySelector('#drMove');if(!b)return;b.disabled=!n;d.querySelector('#drSelN').textContent=n;d.querySelector('#drHint').style.display=n?'none':'';}
 
-let tsFilterUnit='',tsFilterType='',tsFilterStatus='',tsFilterNotes='',tsSearch='';
+let tsUnits=new Set(),tsTypes=new Set(),tsStatuses=new Set(),tsFilterNotes='',tsSearch='';
 function hasNote(v){return !!(v.note&&v.note.trim());}
 function tsFilteredRows(){
-  let rows=V.filter(v=>(!tsFilterUnit||v.unit===tsFilterUnit)&&(!tsFilterType||v.type===tsFilterType)&&(!tsFilterStatus||normReady(v.ready)===tsFilterStatus)&&(!tsFilterNotes||(tsFilterNotes==='yes'?hasNote(v):!hasNote(v))));
+  let rows=V.filter(v=>(!tsUnits.size||tsUnits.has(v.unit))&&(!tsTypes.size||tsTypes.has(v.type))&&(!tsStatuses.size||tsStatuses.has(normReady(v.ready)))&&(!tsFilterNotes||(tsFilterNotes==='yes'?hasNote(v):!hasNote(v))));
   if(tsSearch){const q=tsSearch.trim();rows=rows.filter(v=>(v.tsadi&&v.tsadi.indexOf(q)>=0)||(v.note&&v.note.indexOf(q)>=0));}
   rows.sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]||(a.tsadi||'').localeCompare(b.tsadi||''));
   return rows;
 }
+const TS_MS={units:{set:()=>tsUnits,label:'מסגרות',opts:()=>UNITS_ALL},types:{set:()=>tsTypes,label:'סוגי רכב',opts:()=>TYPES},statuses:{set:()=>tsStatuses,label:'סטטוסים',opts:()=>RDY}};
+function msHtml(id){const c=TS_MS[id],set=c.set(),n=set.size;return '<div class="ms" data-msid="'+id+'"><button type="button" class="msBtn'+(n?' active':'')+'">'+c.label+(n?' ('+n+')':'')+' ▾</button><div class="msPanel"><div class="msActions"><button type="button" class="msAll">בחר הכל</button><button type="button" class="msNone">נקה</button></div>'+c.opts().map(o=>'<label class="msItem"><input type="checkbox" value="'+esc(o)+'" '+(set.has(o)?'checked':'')+'>'+esc(o)+'</label>').join('')+'</div></div>';}
+function updateMsBtn(ms){const id=ms.getAttribute('data-msid'),c=TS_MS[id],n=c.set().size,b=ms.querySelector('.msBtn');b.textContent=c.label+(n?' ('+n+')':'')+' ▾';b.classList.toggle('active',!!n);}
+function tsRowHtml(v){const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other');return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'">'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}
 function openTsadi(){document.getElementById('tsadiScreen').classList.remove('hidden');renderTsadi();}
 function closeTsadi(){document.getElementById('tsadiScreen').classList.add('hidden');}
+function applyTsadiFilter(){
+  const rows=tsFilteredRows(),tb=document.getElementById('tsBody');if(!tb)return;
+  tb.innerHTML=rows.length?rows.map(tsRowHtml).join(''):'<tr><td colspan="6" class="empty">לא נמצאו כלים לסינון הזה.</td></tr>';
+  const cnt=document.getElementById('tsCount');if(cnt)cnt.textContent=rows.length;
+  tb.querySelectorAll('.tsIn').forEach(inp=>inp.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(!v)return;const f=e.target.getAttribute('data-f');v[f]=(f==='tsadi')?e.target.value.trim():e.target.value;save();renderFlows();renderLog();applyTsadiFilter();}));
+  tb.querySelectorAll('.rdySel').forEach(s=>s.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.ready=e.target.value;save();renderScenario();applyTsadiFilter();}}));
+}
 function renderTsadi(){
   const scr=document.getElementById('tsadiScreen');
-  const unitOpts='<option value="">כל המסגרות</option>'+UNITS_ALL.map(u=>'<option value="'+esc(u)+'"'+(u===tsFilterUnit?' selected':'')+'>'+esc(u)+'</option>').join('');
-  const typeOpts='<option value="">כל הסוגים</option>'+TYPES.map(t=>'<option value="'+esc(t)+'"'+(t===tsFilterType?' selected':'')+'>'+esc(t)+'</option>').join('');
-  const statusOpts='<option value="">כל הסטטוסים</option>'+RDY.map(r=>'<option value="'+esc(r)+'"'+(r===tsFilterStatus?' selected':'')+'>'+esc(r)+'</option>').join('');
   const notesOpts='<option value="">הערות: הכל</option><option value="yes"'+(tsFilterNotes==='yes'?' selected':'')+'>יש הערה</option><option value="no"'+(tsFilterNotes==='no'?' selected':'')+'>אין הערה</option>';
-  const rows=tsFilteredRows();
   scr.innerHTML='<div class="tsh"><h2>'+ic('hash')+'מסך צ׳ מלא — כל הכלים</h2>'+
-    '<div id="tsadiFilters"><select id="tsUnit" class="sel">'+unitOpts+'</select><select id="tsType" class="sel">'+typeOpts+'</select><select id="tsStatus" class="sel">'+statusOpts+'</select><select id="tsNotes" class="sel">'+notesOpts+'</select><input id="tsSearch" placeholder="חיפוש צ׳ / הערה" value="'+esc(tsSearch)+'"><span style="color:var(--muted);font-size:12.5px;font-weight:600">'+rows.length+' כלים</span><button class="btn" id="tsExport">'+ic('download')+'ייצוא לאקסל</button><button class="btn primary" id="tsBack">'+ic('arrowLeft')+'חזרה לדשבורד</button></div></div>'+
-    '<div class="tsBody"><table class="tsTable"><thead><tr><th style="width:120px">מסגרת</th><th style="width:150px">צ׳</th><th>סוג רכב</th><th style="width:120px">כשירות</th><th>הערה</th><th style="width:100px">מקור</th></tr></thead><tbody>'+
-    (rows.length?rows.map(v=>{const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other');return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'">'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="empty">לא נמצאו כלים לסינון הזה.</td></tr>')+'</tbody></table></div>';
+    '<div id="tsadiFilters">'+msHtml('units')+msHtml('types')+msHtml('statuses')+'<select id="tsNotes" class="sel">'+notesOpts+'</select><input id="tsSearch" placeholder="חיפוש צ׳ / הערה" value="'+esc(tsSearch)+'"><span class="tsTotal">סה״כ: <b id="tsCount">0</b> כלים</span><button class="btn" id="tsExport">'+ic('download')+'ייצוא לאקסל</button><button class="btn primary" id="tsBack">'+ic('arrowLeft')+'חזרה לדשבורד</button></div></div>'+
+    '<div class="tsBody"><table class="tsTable"><thead><tr><th style="width:120px">מסגרת</th><th style="width:150px">צ׳</th><th>סוג רכב</th><th style="width:120px">כשירות</th><th>הערה</th><th style="width:100px">מקור</th></tr></thead><tbody id="tsBody"></tbody></table></div>';
   scr.querySelector('#tsBack').addEventListener('click',closeTsadi);
   scr.querySelector('#tsExport').addEventListener('click',exportTsadiCSV);
-  scr.querySelector('#tsUnit').addEventListener('change',e=>{tsFilterUnit=e.target.value;renderTsadi();});
-  scr.querySelector('#tsType').addEventListener('change',e=>{tsFilterType=e.target.value;renderTsadi();});
-  scr.querySelector('#tsStatus').addEventListener('change',e=>{tsFilterStatus=e.target.value;renderTsadi();});
-  scr.querySelector('#tsNotes').addEventListener('change',e=>{tsFilterNotes=e.target.value;renderTsadi();});
-  const se=scr.querySelector('#tsSearch');se.addEventListener('input',e=>{tsSearch=e.target.value;const pos=e.target.selectionStart;renderTsadi();const ns=document.getElementById('tsSearch');if(ns){ns.focus();try{ns.setSelectionRange(pos,pos);}catch(x){}}});
-  scr.querySelectorAll('.tsIn').forEach(inp=>inp.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(!v)return;const f=e.target.getAttribute('data-f');v[f]=(f==='tsadi')?e.target.value.trim():e.target.value;save();renderFlows();renderLog();}));
-  scr.querySelectorAll('.rdySel').forEach(s=>s.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.ready=e.target.value;save();renderScenario();const st=normReady(v.ready);e.target.className='rdySel st-'+(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other');}}));
+  scr.querySelector('#tsNotes').addEventListener('change',e=>{tsFilterNotes=e.target.value;applyTsadiFilter();});
+  scr.querySelector('#tsSearch').addEventListener('input',e=>{tsSearch=e.target.value;applyTsadiFilter();});
+  const filt=scr.querySelector('#tsadiFilters');
+  filt.addEventListener('click',e=>{
+    const btn=e.target.closest('.msBtn');
+    if(btn){e.stopPropagation();const ms=btn.closest('.ms'),wasOpen=ms.classList.contains('open');filt.querySelectorAll('.ms.open').forEach(x=>x.classList.remove('open'));if(!wasOpen)ms.classList.add('open');return;}
+    const act=e.target.closest('.msAll,.msNone');
+    if(act){e.stopPropagation();const ms=e.target.closest('.ms'),c=TS_MS[ms.getAttribute('data-msid')],set=c.set(),all=e.target.classList.contains('msAll');set.clear();if(all)c.opts().forEach(o=>set.add(o));ms.querySelectorAll('.msItem input').forEach(cb=>cb.checked=all);updateMsBtn(ms);applyTsadiFilter();return;}
+  });
+  filt.addEventListener('change',e=>{const cb=e.target.closest('.msPanel input[type=checkbox]');if(!cb)return;const ms=cb.closest('.ms'),set=TS_MS[ms.getAttribute('data-msid')].set();if(cb.checked)set.add(cb.value);else set.delete(cb.value);updateMsBtn(ms);applyTsadiFilter();});
+  applyTsadiFilter();
 }
+document.addEventListener('click',e=>{if(!e.target.closest('.ms'))document.querySelectorAll('.ms.open').forEach(x=>x.classList.remove('open'));});
 function exportTsadiCSV(){
   const rows=tsFilteredRows();
   const data=[['מסגרת','צ׳','סוג רכב','כשירות','הערה','מקור (אם הועבר)']];
@@ -2642,8 +2670,15 @@ function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('tru
 function renderAll(){renderScenario();renderSurplus();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
 migrateSavedScenarios();
-const _startup=findScenario(getStartupName());
-if(_startup){ applyScenario(_startup); } else if(!load()){ applyDefaultMoves(); }
+(function(){
+  // 1) explicit per-device startup override  2) universal embedded default  3) local "1"  4) working state / baseline
+  let explicit=null; try{explicit=localStorage.getItem('vr_startup');}catch(e){}
+  let done=false;
+  if(explicit){const s=findScenario(explicit); if(s){applyScenario(s);done=true;}}
+  if(!done && DEFAULT_SCENARIO && DEFAULT_SCENARIO.v){ applyScenario(DEFAULT_SCENARIO); done=true; }
+  if(!done){const s1=findScenario('1'); if(s1){applyScenario(s1);done=true;}}
+  if(!done && !load()) applyDefaultMoves();
+})();
 migrateReadiness();V.forEach(v=>v.ready=normReady(v.ready));paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();
 })();
 </script>
