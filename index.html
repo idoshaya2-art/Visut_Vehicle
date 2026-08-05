@@ -2148,7 +2148,11 @@
   .uchip{display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:12.5px;padding:3px 9px;border-radius:8px;background:#eef2f8;color:var(--ink2)}
   .uchip.combat{background:var(--combat-bg);color:var(--brand-ink)}
   .uchip .ic{width:13px;height:13px}
-  .rdySel{font-family:inherit;font-size:12.5px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:#fbfcfe;font-weight:700}
+  .rdySel{font-family:inherit;font-size:12.5px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:#fbfcfe;font-weight:800;cursor:pointer}
+  .rdySel.st-ok{background:var(--pos-bg);color:var(--pos);border-color:var(--pos-line)}
+  .rdySel.st-lim{background:#fdefd3;color:var(--amber);border-color:var(--amber-line)}
+  .rdySel.st-off{background:var(--neg-bg);color:var(--neg);border-color:var(--neg-line)}
+  .rdySel.st-other{background:#eef2f8;color:#475569;border-color:var(--line)}
   .movedTag{font-size:10.5px;color:var(--brand-ink);background:var(--brand-soft);padding:2px 8px;border-radius:6px;font-weight:700;white-space:nowrap}
 
   .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -2507,15 +2511,25 @@ function renderTsadi(){
   if(tsSearch){const q=tsSearch.trim();rows=rows.filter(v=>(v.tsadi&&v.tsadi.indexOf(q)>=0)||(v.note&&v.note.indexOf(q)>=0));}
   rows.sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]||(a.tsadi||'').localeCompare(b.tsadi||''));
   scr.innerHTML='<div class="tsh"><h2>'+ic('hash')+'מסך צ׳ מלא — כל הכלים</h2>'+
-    '<div id="tsadiFilters"><select id="tsUnit" class="sel">'+unitOpts+'</select><select id="tsType" class="sel">'+typeOpts+'</select><input id="tsSearch" placeholder="חיפוש צ׳ / הערה" value="'+esc(tsSearch)+'"><span style="color:var(--muted);font-size:12.5px;font-weight:600">'+rows.length+' כלים</span><button class="btn primary" id="tsBack">'+ic('arrowLeft')+'חזרה לדשבורד</button></div></div>'+
+    '<div id="tsadiFilters"><select id="tsUnit" class="sel">'+unitOpts+'</select><select id="tsType" class="sel">'+typeOpts+'</select><input id="tsSearch" placeholder="חיפוש צ׳ / הערה" value="'+esc(tsSearch)+'"><span style="color:var(--muted);font-size:12.5px;font-weight:600">'+rows.length+' כלים</span><button class="btn" id="tsExport">'+ic('download')+'ייצוא לאקסל</button><button class="btn primary" id="tsBack">'+ic('arrowLeft')+'חזרה לדשבורד</button></div></div>'+
     '<div class="tsBody"><table class="tsTable"><thead><tr><th style="width:120px">מסגרת</th><th style="width:150px">צ׳</th><th>סוג רכב</th><th style="width:120px">כשירות</th><th>הערה</th><th style="width:100px">מקור</th></tr></thead><tbody>'+
-    (rows.length?rows.map(v=>{const moved=v.unit!==v.base;return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"></td><td>'+esc(v.type)+'</td><td><select class="rdySel" data-vid="'+v.id+'">'+RDY.map(r=>'<option'+(r===v.ready?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="empty">לא נמצאו כלים לסינון הזה.</td></tr>')+'</tbody></table></div>';
+    (rows.length?rows.map(v=>{const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other');return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'">'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="empty">לא נמצאו כלים לסינון הזה.</td></tr>')+'</tbody></table></div>';
   scr.querySelector('#tsBack').addEventListener('click',closeTsadi);
+  scr.querySelector('#tsExport').addEventListener('click',exportTsadiCSV);
   scr.querySelector('#tsUnit').addEventListener('change',e=>{tsFilterUnit=e.target.value;renderTsadi();});
   scr.querySelector('#tsType').addEventListener('change',e=>{tsFilterType=e.target.value;renderTsadi();});
   const se=scr.querySelector('#tsSearch');se.addEventListener('input',e=>{tsSearch=e.target.value;const pos=e.target.selectionStart;renderTsadi();const ns=document.getElementById('tsSearch');if(ns){ns.focus();try{ns.setSelectionRange(pos,pos);}catch(x){}}});
   scr.querySelectorAll('.tsIn').forEach(inp=>inp.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(!v)return;const f=e.target.getAttribute('data-f');v[f]=(f==='tsadi')?e.target.value.trim():e.target.value;save();renderFlows();renderLog();}));
-  scr.querySelectorAll('.rdySel').forEach(s=>s.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.ready=e.target.value;save();renderScenario();}}));
+  scr.querySelectorAll('.rdySel').forEach(s=>s.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.ready=e.target.value;save();renderScenario();const st=normReady(v.ready);e.target.className='rdySel st-'+(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other');}}));
+}
+function exportTsadiCSV(){
+  let rows=V.filter(v=>(!tsFilterUnit||v.unit===tsFilterUnit)&&(!tsFilterType||v.type===tsFilterType));
+  if(tsSearch){const q=tsSearch.trim();rows=rows.filter(v=>(v.tsadi&&v.tsadi.indexOf(q)>=0)||(v.note&&v.note.indexOf(q)>=0));}
+  rows.sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]||(a.tsadi||'').localeCompare(b.tsadi||''));
+  const data=[['מסגרת','צ׳','סוג רכב','כשירות','הערה','מקור (אם הועבר)']];
+  rows.forEach(v=>data.push([v.unit,v.tsadi,v.type,normReady(v.ready),v.note,(v.unit!==v.base?v.base:'')]));
+  const csv='﻿'+data.map(r=>r.map(c=>{const s=String(c==null?'':c);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='רשימת-צ-כלים-'+new Date().toISOString().slice(0,10)+'.csv';document.body.appendChild(a);a.click();a.remove();toast('קובץ צ׳ יוצא ('+rows.length+' כלים)','good');
 }
 
 function openImport(){
