@@ -2445,18 +2445,6 @@ function renderSummary(){
   el.innerHTML=active.map(u=>{const a=agg[u],nc=a.net>0?'pos':(a.net<0?'neg':'zero'),recv=Object.entries(a.recv).map(([t,q])=>q+' '+t).join(' · '),give=Object.entries(a.give).map(([t,q])=>q+' '+t).join(' · ');return '<div class="sumItem"><div class="fn">'+(u===POOL?ic('inbox'):COMBAT.has(u)?ic('shield'):'')+esc(u)+'<span class="net '+nc+'">'+(a.net>0?'+':'')+a.net+'</span></div>'+(recv?'<div class="recv">'+ic('arrowDown')+'<span>מקבל: '+esc(recv)+'</span></div>':'')+(give?'<div class="give">'+ic('arrowLeft')+'<span>נותן: '+esc(give)+'</span></div>':'')+'</div>';}).join('');
 }
 
-function renderTargets(){
-  const el=document.getElementById('targetsPanel');
-  const grp=(list)=>list.map(c=>'<optgroup label="'+esc(c)+'">'+TYPES.filter(t=>TYPE_CAT[t]===c).map(t=>'<option value="'+esc(t)+'"'+(t===tgType?' selected':'')+'>'+esc(t)+'</option>').join('')+'</optgroup>').join('');
-  let body='';
-  if(targetsOpen){let grid='';UNITS.forEach(u=>{const n=count(u,tgType),tg=(targets[u]&&targets[u][tgType]);let stat='';if(tg!=null&&tg!==''){const d=n-tg;stat=d<0?'<span class="stat def">חוסר '+(-d)+'</span>':(d>0?'<span class="stat sur">עודף '+d+'</span>':'<span class="stat ok">מאוזן</span>');}grid+='<div class="tgCell'+(COMBAT.has(u)?' combat':'')+'"><div class="fn">'+esc(u)+'</div><div class="row">נוכחי <b>'+n+'</b> · יעד <input type="number" min="0" data-tg="'+esc(u)+'" value="'+(tg!=null?tg:'')+'" placeholder="—"></div><div class="row" style="margin-top:5px">'+(stat||'<span style="color:#98a2b3;font-size:11px">ללא יעד</span>')+'</div></div>';});
-    body='<div class="tgBody"><div class="tgControls"><label style="font-weight:700">סוג רכב:</label><select id="tgTypeSel">'+grp(CATS_V)+grp(CATS_R)+'</select><button class="btn" id="tgPreset">'+ic('target')+'יעד לדוגמה (8/8/8/8/8/6)</button><button class="btn danger" id="tgClear">'+ic('trash')+'נקה יעדים לסוג</button></div><div class="tgGrid">'+grid+'</div></div>';}
-  el.innerHTML='<div class="tgHead'+(targetsOpen?' open':'')+'" id="tgHeadToggle"><h2>'+ic('target')+'יעדים (אופציונלי)</h2><span class="desc" style="font-size:12px;margin-inline-start:auto">חיווי חוסר/עודף מול יעד — לא כופה ולא משנה מלאי</span><span class="chev">'+ic('chevron')+'</span></div>'+body;
-  el.querySelector('#tgHeadToggle').addEventListener('click',()=>{targetsOpen=!targetsOpen;renderTargets();});
-  if(targetsOpen){el.querySelector('#tgTypeSel').addEventListener('change',e=>{tgType=e.target.value;renderTargets();});el.querySelectorAll('input[data-tg]').forEach(inp=>inp.addEventListener('change',e=>{const u=e.target.getAttribute('data-tg'),val=e.target.value;targets[u]=targets[u]||{};if(val==='')delete targets[u][tgType];else targets[u][tgType]=parseInt(val);save();renderTargets();renderScenario();}));
-    el.querySelector('#tgPreset').addEventListener('click',()=>{const p={'7020':8,'8110':8,'8111':8,'גדס"ר':8,'גדס"מ':8,'מפח"ט':6};tgType='האמר סיור';Object.keys(p).forEach(u=>{targets[u]=targets[u]||{};targets[u]['האמר סיור']=p[u];});save();renderTargets();renderScenario();toast('נטענו יעדי דוגמה','good');});
-    el.querySelector('#tgClear').addEventListener('click',()=>{UNITS.forEach(u=>{if(targets[u])delete targets[u][tgType];});save();renderTargets();renderScenario();});}
-}
 
 function closePopover(){const p=document.getElementById('popover');p.className='popover hidden';p.innerHTML='';}
 function openChooser(anchor,u,t,mode){
