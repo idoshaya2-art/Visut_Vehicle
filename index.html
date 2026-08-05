@@ -1884,7 +1884,7 @@
     --amber:#c9760a; --amber-bg:#fff5e6; --amber-line:#f4d59a; --amber-strong:#e8890c;
     --steel:#3a4a63; --steel-bg:#eef1f6; --steel-line:#c9d3e2;
     --combat-bg:#f3f7ff; --combat-bar:#3b82f6;
-    --rdy-ok:#15803d; --rdy-lim:#c9760a; --rdy-off:#d33f3f;
+    --rdy-ok:#15803d; --rdy-lim:#c9760a; --rdy-off:#d33f3f; --rdy-other:#5b6b82;
     --sh-xs:0 1px 2px rgba(15,23,42,.05);
     --sh:0 3px 14px rgba(15,23,42,.07);
     --sh-lg:0 14px 44px rgba(15,23,42,.18);
@@ -2001,12 +2001,13 @@
   .delta{font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px}
   .delta.pos{color:var(--pos);background:var(--pos-bg)} .delta.neg{color:var(--neg);background:var(--neg-bg)}
   .rdyDot{width:8px;height:8px;border-radius:50%}
-  .rdyDot.ok{background:var(--rdy-ok)} .rdyDot.lim{background:var(--rdy-lim)} .rdyDot.off{background:var(--rdy-off)}
+  .rdyDot.ok{background:var(--rdy-ok)} .rdyDot.lim{background:var(--rdy-lim)} .rdyDot.off{background:var(--rdy-off)} .rdyDot.other{background:var(--rdy-other)}
   .rdyChip{font-size:9px;font-weight:800;padding:1px 5px;border-radius:6px;line-height:1.5;display:inline-flex;align-items:center;gap:2px}
   .rdyChip::before{content:"";width:6px;height:6px;border-radius:50%}
   .rdyChip.ok{background:var(--pos-bg);color:var(--pos)} .rdyChip.ok::before{background:var(--rdy-ok)}
   .rdyChip.lim{background:#fdefd3;color:var(--amber)} .rdyChip.lim::before{background:var(--rdy-lim)}
   .rdyChip.off{background:var(--neg-bg);color:var(--neg)} .rdyChip.off::before{background:var(--rdy-off)}
+  .rdyChip.other{background:#eef2f8;color:#475569} .rdyChip.other::before{background:var(--rdy-other)}
   .rdyLegend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:9px 20px;border-top:1px solid var(--line2);background:#fbfcfe;font-size:12px}
   .rdyLegend .lgTtl{font-weight:800;color:var(--ink2);font-family:"Rubik",sans-serif}
   .rdyLegend .lgItem{display:inline-flex;align-items:center;gap:6px;font-weight:700;color:var(--ink2)}
@@ -2110,7 +2111,7 @@
   .vcard .tsadiVal.empty{color:#b6c0cf;font-weight:600}
   .vcard .rdy{display:inline-flex;gap:4px;align-items:center;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:8px;cursor:pointer;border:1px solid var(--line);background:#fbfcfe;color:var(--ink2)}
   .vcard .rdy .dot{width:9px;height:9px;border-radius:50%;background:var(--rdy-ok)}
-  .vcard .rdy.lim .dot{background:var(--rdy-lim)} .vcard .rdy.off .dot{background:var(--rdy-off)}
+  .vcard .rdy.lim .dot{background:var(--rdy-lim)} .vcard .rdy.off .dot{background:var(--rdy-off)} .vcard .rdy.other .dot{background:var(--rdy-other)}
   .vcard .mvOne{border:1px solid var(--line);background:#eef2f8 url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%234b5768' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>") no-repeat left .45rem center;color:var(--ink2);border-radius:9px;padding:6px 26px 6px 10px;cursor:pointer;font-family:inherit;font-weight:700;font-size:12px;-webkit-appearance:none;appearance:none}
   .vcard .origin{font-size:10.5px;color:var(--brand-ink);background:var(--brand-soft);padding:2px 8px;border-radius:6px;font-weight:700}
   .vcard .note{margin-top:9px;width:100%;border:1px solid var(--line);border-radius:9px;padding:8px 10px;font-family:inherit;font-size:12.5px;background:#fbfcfe;resize:vertical;min-height:34px;color:var(--ink2)}
@@ -2213,6 +2214,7 @@
         <span class="lgItem"><span class="rdyDot ok"></span>כשיר</span>
         <span class="lgItem"><span class="rdyDot lim"></span>מוגבל</span>
         <span class="lgItem"><span class="rdyDot off"></span>מושבת</span>
+        <span class="lgItem"><span class="rdyDot other"></span>אחר</span>
         <span class="lgNote">בתא מסומנים רק «מוגבל» ו«מושבת» (כשיר — ללא סימון) · לעריכה לחצו על מספר בתא</span>
       </div>
       <div class="tableWrap" id="scenarioTableWrap"></div>
@@ -2295,9 +2297,9 @@ const CATCOLORS={
   "גרורים":{d:"#b7791f",bg:"#fbeed3"},"תקשוב ומבצעי":{d:"#8b47d6",bg:"#f3ecfd"},"אמבולנסים":{d:"#d6455d",bg:"#fde8ec"},
   "ציוד ואחר":{d:"#556173",bg:"#eaeff6"},'רק"ם':{d:"#3a4a63",bg:"#e7ebf2"}
 };
-const RDY=['כשיר','מוגבל','מושבת']; const RDY_CLS={'כשיר':'','מוגבל':'lim','מושבת':'off'};
-// normalize any readiness value to one of the 3 canonical statuses ("לא כשיר" => מושבת)
-function normReady(r){ if(r==='מוגבל')return 'מוגבל'; if(r==='מושבת'||r==='לא כשיר'||r==='לא-כשיר')return 'מושבת'; return 'כשיר'; }
+const RDY=['כשיר','מוגבל','מושבת','אחר']; const RDY_CLS={'כשיר':'','מוגבל':'lim','מושבת':'off','אחר':'other'};
+// normalize any readiness value to one of the canonical statuses ("לא כשיר" => מושבת)
+function normReady(r){ if(r==='מוגבל')return 'מוגבל'; if(r==='מושבת'||r==='לא כשיר'||r==='לא-כשיר')return 'מושבת'; if(r==='אחר')return 'אחר'; return 'כשיר'; }
 
 let VID=1; const V=[];
 // roster (from the authoritative צ׳ Excel) provides צ׳+note per unit+type, in order
@@ -2390,10 +2392,11 @@ function headerRows(){
 function fnLabel(u){if(u===POOL)return '<span class="fnm">'+ic('inbox')+esc(POOL)+'</span>';if(COMBAT.has(u))return '<span class="fnm">'+ic('shield')+esc(u)+'</span>';return esc(u);}
 function scenarioCell(u,t){
   const vs=inCell(u,t),n=vs.length,d=n-baseCount(u,t);
-  const lim=vs.filter(v=>normReady(v.ready)==='מוגבל').length,off=vs.filter(v=>normReady(v.ready)==='מושבת').length;
+  const lim=vs.filter(v=>normReady(v.ready)==='מוגבל').length,off=vs.filter(v=>normReady(v.ready)==='מושבת').length,oth=vs.filter(v=>normReady(v.ready)==='אחר').length;
   let meta='';
   if(off)meta+='<span class="rdyChip off">'+off+' מושבת</span>';
   if(lim)meta+='<span class="rdyChip lim">'+lim+' מוגבל</span>';
+  if(oth)meta+='<span class="rdyChip other">'+oth+' אחר</span>';
   const deltaHtml=(d!==0)?'<span class="cellDelta '+(d>0?'pos':'neg')+'" title="שינוי מול הבסיס">'+(d>0?'+':'')+d+'</span>':'';
   return '<td class="cell" data-u="'+esc(u)+'" data-t="'+esc(t)+'" draggable="true">'+
     '<div class="cellInner">'+deltaHtml+
@@ -2473,7 +2476,7 @@ function renderDrawer(){
   list.querySelectorAll('.chk').forEach(c=>c.addEventListener('change',e=>{const id=+e.target.getAttribute('data-vid');if(e.target.checked)drawerSel.add(id);else drawerSel.delete(id);updDrSel();}));
   list.querySelectorAll('.tsadiVal').forEach(inp=>inp.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.tsadi=e.target.value.trim();save();renderFlows();renderLog();e.target.classList.toggle('empty',!v.tsadi);}}));
   list.querySelectorAll('.note').forEach(n=>n.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.note=e.target.value;save();}}));
-  list.querySelectorAll('.rdy').forEach(b=>b.addEventListener('click',()=>{const v=byId(+b.getAttribute('data-vid'));if(v){v.ready=RDY[(RDY.indexOf(v.ready)+1)%3];save();renderDrawer();renderScenario();}}));
+  list.querySelectorAll('.rdy').forEach(b=>b.addEventListener('click',()=>{const v=byId(+b.getAttribute('data-vid'));if(v){const ci=RDY.indexOf(normReady(v.ready));v.ready=RDY[(ci+1)%RDY.length];save();renderDrawer();renderScenario();}}));
   list.querySelectorAll('.mvOne').forEach(s=>s.addEventListener('change',e=>{const to=e.target.value;if(!to)return;const id=+e.target.getAttribute('data-vid'),v=byId(id);moveVehicle(id,to);toast(v.type+' צ׳ '+(v.tsadi||'—')+' → '+to,'good');renderAll();renderDrawer();}));
   updDrSel();
 }
