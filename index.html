@@ -2462,7 +2462,7 @@ function renderTransferBar(){
   el.querySelector('#tfType').addEventListener('change',fillFrames); fillFrames();
   el.querySelector('#tfGo').addEventListener('click',()=>{const t=el.querySelector('#tfType').value,f=el.querySelector('#tfFrom').value,to=el.querySelector('#tfTo').value,q=parseInt(el.querySelector('#tfQty').value);if(moveQty(t,f,to,q)){renderAll();toast(q+' × '+t+' — מ'+f+' ל'+to,'good');}});
 }
-function fillFrames(){const el=document.getElementById('transferBar');if(!el.querySelector('#tfType'))return;const t=el.querySelector('#tfType').value,from=el.querySelector('#tfFrom'),to=el.querySelector('#tfTo');const pf=from.value,pt=to.value;const opt=u=>'<option value="'+esc(u)+'">'+esc(u)+' ('+count(u,t)+')</option>';from.innerHTML=UNITS_ALL.map(opt).join('');to.innerHTML=UNITS_ALL.map(opt).join('');if(pf&&UNITS_ALL.includes(pf))from.value=pf;if(pt&&UNITS_ALL.includes(pt))to.value=pt;if(to.value===from.value)to.value=UNITS_ALL.find(u=>u!==from.value);}
+function fillFrames(){const el=document.getElementById('transferBar');if(!el||!el.querySelector('#tfType'))return;const t=el.querySelector('#tfType').value,from=el.querySelector('#tfFrom'),to=el.querySelector('#tfTo');const pf=from.value,pt=to.value;const opt=u=>'<option value="'+esc(u)+'">'+esc(u)+' ('+count(u,t)+')</option>';from.innerHTML=UNITS_ALL.map(opt).join('');to.innerHTML=UNITS_ALL.map(opt).join('');if(pf&&UNITS_ALL.includes(pf))from.value=pf;if(pt&&UNITS_ALL.includes(pt))to.value=pt;if(to.value===from.value)to.value=UNITS_ALL.find(u=>u!==from.value);}
 function presetTransfer(type,from){const el=document.getElementById('transferBar');el.querySelector('#tfType').value=type;fillFrames();if(from&&UNITS_ALL.includes(from))el.querySelector('#tfFrom').value=from;fillFrames();const q=el.querySelector('#tfQty');q.focus();q.select();el.scrollIntoView({behavior:'smooth',block:'nearest'});}
 
 function headerRows(){
@@ -2766,7 +2766,7 @@ function exportCSV(){
 }
 
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
-function renderAll(){renderScenario();renderBalance();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
+function renderAll(){renderScenario();renderBalance();renderFlows();renderLog();renderSummary();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
 // initial paint from the embedded seed (also the fallback when offline); Firestore then overrides live
 applyEmbeddedSeed();
