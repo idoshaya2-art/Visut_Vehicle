@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>וויסות רכבים חטיבתי — פיזור מחדש לפי צ׳</title>
+<title>ויסות רכבים חטיבתי — פיזור מחדש לפי צ׳</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&family=Rubik:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -1978,6 +1978,13 @@
   .tab .ic{width:15px;height:15px}
 
   .tableWrap{overflow-x:auto;max-width:100%;border-top:1px solid var(--line2)}
+  .fsBtn{margin-inline-start:2px}
+  /* fullscreen mode for the scenario card — fills viewport; drawers/modals (z>=90) still overlay */
+  .card.fs{position:fixed;inset:0;z-index:78;margin:0;border:0;border-radius:0;max-width:none;display:flex;flex-direction:column;box-shadow:none;animation:fsIn .18s var(--ease)}
+  @keyframes fsIn{from{opacity:.4;transform:scale(.99)}to{opacity:1;transform:none}}
+  .card.fs>.cardHead{border-bottom:1px solid var(--line)}
+  .card.fs .tableWrap{flex:1 1 auto;min-height:0;overflow:auto;border-top:0}
+  body.scenarioFs{overflow:hidden}
   table.grid{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
   table.grid th,table.grid td{border-bottom:1px solid var(--line2);border-inline-start:1px solid var(--line2);padding:0;text-align:center;white-space:nowrap}
   table.grid thead th{position:sticky;top:0;z-index:5;background:#fbfcfe}
@@ -2218,7 +2225,7 @@
 <header class="app">
   <div class="hrow">
     <div class="brand"><div class="logo" id="logoBox"></div>
-      <div><h1>וויסות רכבים חטיבתי</h1><div class="sub">פיזור מחדש לפי מספר צ׳ · שימור מלאי אוטומטי · תיעוד תנועות חי</div></div>
+      <div><h1>ויסות רכבים חטיבתי</h1><div class="sub">פיזור מחדש לפי מספר צ׳ · שימור מלאי אוטומטי · תיעוד תנועות חי</div></div>
     </div>
     <span class="hdrBalance" id="balanceChip"></span>
     <div class="toolbar">
@@ -2237,15 +2244,16 @@
 
 <div class="layout">
   <div class="main">
-    <section class="card">
+    <section class="card" id="scenarioCard">
       <div class="cardHead">
-        <h2 data-ic="layers">טבלת תרחיש וויסות</h2>
+        <h2 data-ic="layers">טבלת תרחיש ויסות</h2>
         <div class="tabs" id="tabs">
           <button class="tab active" data-tab="רכב" data-ic="truck">רכב</button>
           <button class="tab rakem" data-tab='רק"ם' data-ic="shield">רק״ם</button>
         </div>
         <span class="spacer"></span>
         <span class="desc">לחצו על מספר בתא כדי לפתוח את רשימת הכלים והצ׳ · או גררו / +− להעברה מהירה</span>
+        <button class="btn ghost fsBtn" id="btnScenarioFS" data-ic="maximize" title="הגדל למסך מלא (Esc ליציאה)">מסך מלא</button>
       </div>
       <div class="rdyLegend">
         <span class="lgTtl">מקרא כשירות:</span>
@@ -2319,7 +2327,9 @@ const P={
   hash:'<line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/>',
   move:'<polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/>',
   search:'<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
-  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'
+  star:'<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  maximize:'<path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/>',
+  minimize:'<path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/>'
 };
 function ic(n,cls){return '<svg class="ic'+(cls?' '+cls:'')+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+(P[n]||'')+'</svg>';}
 
@@ -2334,10 +2344,12 @@ const CATS_V=DATA.catsVehicle, CATS_R=DATA.catsRakem;
 const RAKEM_TAB='רק"ם';
 const TYPE_IDX={};TYPES.forEach((t,i)=>TYPE_IDX[t]=i);
 const U_IDX={};UNITS_ALL.forEach((u,i)=>U_IDX[u]=i);
+// Cohesive COOL palette (blue→indigo→slate). Green/amber/red are reserved for
+// readiness status only, so category bars never compete with the legend colors.
 const CATCOLORS={
-  "משפחת האמר":{d:"#3457b8",bg:"#eef2fb"},"משאיות ומשא":{d:"#1f8a5b",bg:"#ecf6f0"},"מים ודלק":{d:"#1c8390",bg:"#eaf4f5"},
-  "גרורים":{d:"#a9741f",bg:"#f8efdc"},"תקשוב ומבצעי":{d:"#7a4fc0",bg:"#f2ecfb"},"אמבולנסים":{d:"#c04a5c",bg:"#faecef"},
-  "ציוד ואחר":{d:"#5a6676",bg:"#eef1f6"},'רק"ם':{d:"#3d4a60",bg:"#ebeef3"}
+  "משפחת האמר":{d:"#2f4b7c",bg:"#eef2f8"},"משאיות ומשא":{d:"#3a6091",bg:"#eef3f8"},"מים ודלק":{d:"#356f89",bg:"#edf4f7"},
+  "גרורים":{d:"#4a5788",bg:"#eff1f8"},"תקשוב ומבצעי":{d:"#5a4f8c",bg:"#f1eef8"},"אמבולנסים":{d:"#6a5486",bg:"#f2eff6"},
+  "ציוד ואחר":{d:"#556274",bg:"#eef1f5"},'רק"ם':{d:"#3d4a60",bg:"#eceef3"}
 };
 const RDY=['כשיר','מוגבל','מושבת','אחר']; const RDY_CLS={'כשיר':'','מוגבל':'lim','מושבת':'off','אחר':'other'};
 // normalize any readiness value to one of the canonical statuses ("לא כשיר" => מושבת)
@@ -2508,9 +2520,9 @@ function renderBaseline(){
 
 function renderFlows(){
   const el=document.getElementById('flowsCard'),fl=computeFlows(),tot=fl.reduce((s,f)=>s+f.qty,0);
-  const head='<div class="fhead"><h2>'+ic('route')+'סיכום הוויסות — מי מוסר למי</h2>'+(fl.length?'<span class="fstat">'+fl.length+' תנועות · '+tot+' כלים</span>':'')+'<span class="spacer"></span>'+(fl.length?'<button class="btn" id="btnCopyFlows">'+ic('copy')+'העתק טקסט</button>':'')+'</div>';
+  const head='<div class="fhead"><h2>'+ic('route')+'סיכום הויסות — מי מוסר למי</h2>'+(fl.length?'<span class="fstat">'+fl.length+' תנועות · '+tot+' כלים</span>':'')+'<span class="spacer"></span>'+(fl.length?'<button class="btn" id="btnCopyFlows">'+ic('copy')+'העתק טקסט</button>':'')+'</div>';
   let body;
-  if(!fl.length)body='<div class="flowsBody"><div class="flowsEmpty">'+ic('route')+'<div>אין עדיין תנועות וויסות.<br>העבירו כלים והסיכום — מי מוסר למי, איזה סוג, כמה ואילו צ׳ — ייבנה כאן אוטומטית.</div></div></div>';
+  if(!fl.length)body='<div class="flowsBody"><div class="flowsEmpty">'+ic('route')+'<div>אין עדיין תנועות ויסות.<br>העבירו כלים והסיכום — מי מוסר למי, איזה סוג, כמה ואילו צ׳ — ייבנה כאן אוטומטית.</div></div></div>';
   else body='<div class="flowsBody"><table class="flows"><thead><tr><th style="width:20%">מוסר</th><th style="width:5%"></th><th style="width:20%">מקבל</th><th style="width:40%">סוג רכב · צ׳</th><th style="width:15%;text-align:center">כמות</th></tr></thead><tbody>'+
     fl.map(f=>'<tr><td><span class="fchip from">'+(f.from===POOL?ic('inbox'):COMBAT.has(f.from)?ic('shield'):'')+esc(f.from)+'</span></td><td class="farrow">'+ic('arrowLeft')+'</td><td><span class="fchip to">'+(f.to===POOL?ic('inbox'):COMBAT.has(f.to)?ic('shield'):'')+esc(f.to)+'</span></td><td><div class="ftype">'+esc(f.type)+'</div><div class="ftsadi">צ׳ '+esc(f.tsadis.join(', '))+'</div></td><td class="fqty">'+f.qty+'<span class="u">יח׳</span></td></tr>').join('')+'</tbody></table></div>';
   el.innerHTML=head+body;
@@ -2527,7 +2539,7 @@ function renderSummary(){
   const el=document.getElementById('sumList'),agg={};UNITS_ALL.forEach(u=>agg[u]={recv:{},give:{},net:0});
   V.forEach(v=>{if(v.unit!==v.base){agg[v.unit].recv[v.type]=(agg[v.unit].recv[v.type]||0)+1;agg[v.unit].net++;agg[v.base].give[v.type]=(agg[v.base].give[v.type]||0)+1;agg[v.base].net--;}});
   const active=UNITS_ALL.filter(u=>agg[u].net!==0||Object.keys(agg[u].recv).length||Object.keys(agg[u].give).length);
-  if(!active.length){el.innerHTML='<div class="empty">אין תנועות. המאזן יתעדכן לפי הוויסות.</div>';return;}
+  if(!active.length){el.innerHTML='<div class="empty">אין תנועות. המאזן יתעדכן לפי הויסות.</div>';return;}
   el.innerHTML=active.map(u=>{const a=agg[u],nc=a.net>0?'pos':(a.net<0?'neg':'zero'),recv=Object.entries(a.recv).map(([t,q])=>q+' '+t).join(' · '),give=Object.entries(a.give).map(([t,q])=>q+' '+t).join(' · ');return '<div class="sumItem"><div class="fn">'+(u===POOL?ic('inbox'):COMBAT.has(u)?ic('shield'):'')+esc(u)+'<span class="net '+nc+'">'+(a.net>0?'+':'')+a.net+'</span></div>'+(recv?'<div class="recv">'+ic('arrowDown')+'<span>מקבל: '+esc(recv)+'</span></div>':'')+(give?'<div class="give">'+ic('arrowLeft')+'<span>נותן: '+esc(give)+'</span></div>':'')+'</div>';}).join('');
 }
 
@@ -2716,10 +2728,20 @@ document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.cl
 
 function refreshSavedSel(){const s=document.getElementById('savedSel'),o=savedScenarios(),n=Object.keys(o),su=getStartupName();s.innerHTML='<option value="">— תרחישים שמורים ('+n.length+') —</option>'+n.map(x=>'<option value="'+esc(x)+'">'+esc(x)+(x===su?' ★ פתיחה':'')+'</option>').join('');}
 function resetScenario(){V.forEach(v=>v.unit=v.base);log=[];}
-document.getElementById('btnReset').addEventListener('click',()=>{if(!isAdmin){toast('צפייה בלבד — נדרש מנהל','err');return;}if(!confirm('לאפס את הוויסות לבסיס? הלוג יימחק (הצ׳ וההערות יישמרו).'))return;resetScenario();save();renderAll();toast('אופס לבסיס','good');});
+document.getElementById('btnReset').addEventListener('click',()=>{if(!isAdmin){toast('צפייה בלבד — נדרש מנהל','err');return;}if(!confirm('לאפס את הויסות לבסיס? הלוג יימחק (הצ׳ וההערות יישמרו).'))return;resetScenario();save();renderAll();toast('אופס לבסיס','good');});
 document.getElementById('btnUndo').addEventListener('click',undoLast);
 document.getElementById('btnClearLog').addEventListener('click',()=>{if(!isAdmin){toast('צפייה בלבד — נדרש מנהל','err');return;}if(!log.length){toast('הלוג ריק','err');return;}if(!confirm('לנקות לוג ולהחזיר לבסיס?'))return;resetScenario();save();renderAll();toast('נוקה','good');});
 document.getElementById('btnToggleBase').addEventListener('click',()=>{baseOpen=!baseOpen;document.getElementById('baselineTableWrap').style.display=baseOpen?'block':'none';});
+function setScenarioFS(on){const card=document.getElementById('scenarioCard'),btn=document.getElementById('btnScenarioFS');if(!card)return;card.classList.toggle('fs',on);document.body.classList.toggle('scenarioFs',on);btn.innerHTML=ic(on?'minimize':'maximize')+(on?'צא ממסך מלא':'מסך מלא');btn.title=on?'צא ממסך מלא (Esc)':'הגדל למסך מלא (Esc ליציאה)';if(on)card.scrollIntoView({block:'start'});}
+document.getElementById('btnScenarioFS').addEventListener('click',()=>{const card=document.getElementById('scenarioCard');setScenarioFS(!card.classList.contains('fs'));});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  const host=document.getElementById('modalHost');
+  if(host&&host.children.length){host.innerHTML='';return;}            // close open modal first
+  if(document.getElementById('drawer').classList.contains('show')){closeDrawer();return;}
+  if(!document.getElementById('tsadiScreen').classList.contains('hidden')){closeTsadi();return;}
+  if(document.getElementById('scenarioCard').classList.contains('fs')){setScenarioFS(false);}
+});
 document.getElementById('btnTsadi').addEventListener('click',openTsadi);
 document.getElementById('btnImport').addEventListener('click',openImport);
 document.getElementById('btnAdmin').addEventListener('click',toggleAdmin);
@@ -2758,14 +2780,14 @@ function downloadXlsx(filename,sheetName,rows){
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;document.body.appendChild(a);a.click();a.remove();
 }
 function exportCSV(){
-  const rows=[['וויסות רכבים — מטריצת תרחיש'],['מסגרת',...TYPES]];
+  const rows=[['ויסות רכבים — מטריצת תרחיש'],['מסגרת',...TYPES]];
   UNITS_ALL.forEach(u=>rows.push([u,...TYPES.map(t=>count(u,t))]));
   rows.push(['סה"כ',...TYPES.map(t=>curTotal(t))],[]);
-  rows.push(['סיכום הוויסות — מי מוסר למי'],['מוסר','מקבל','סוג רכב','כמות','צ׳']);
+  rows.push(['סיכום הויסות — מי מוסר למי'],['מוסר','מקבל','סוג רכב','כמות','צ׳']);
   computeFlows().forEach(f=>rows.push([f.from,f.to,f.type,f.qty,f.tsadis.join(' ')]));
   rows.push([],['רשימת כלים מלאה'],['מסגרת נוכחית','מסגרת בסיס','סוג רכב','צ׳','כשירות','הערה']);
   V.slice().sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]).forEach(v=>rows.push([v.unit,v.base,v.type,v.tsadi,normReady(v.ready),v.note]));
-  downloadXlsx('וויסות-רכבים-'+new Date().toISOString().slice(0,10)+'.xlsx','וויסות רכבים',rows);toast('קובץ Excel יוצא (RTL)','good');
+  downloadXlsx('ויסות-רכבים-'+new Date().toISOString().slice(0,10)+'.xlsx','ויסות רכבים',rows);toast('קובץ Excel יוצא (RTL)','good');
 }
 
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
