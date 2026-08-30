@@ -2176,6 +2176,10 @@
   .rdySel.st-off{background:var(--neg-bg);color:var(--neg);border-color:var(--neg-line)}
   .rdySel.st-other{background:#eef2f8;color:#475569;border-color:var(--line)}
   .movedTag{font-size:10.5px;color:var(--brand-ink);background:var(--brand-soft);padding:2px 8px;border-radius:6px;font-weight:700;white-space:nowrap}
+  /* vehicles added after the base data snapshot — amber so they read as "new", not as a readiness state */
+  .addedTag{display:inline-flex;align-items:center;gap:3px;font-size:10.5px;color:#8a5a00;background:#fdf3dd;border:1px solid #f0dcae;padding:2px 8px;border-radius:6px;font-weight:800;white-space:nowrap}
+  .addedTag .ic{width:11px;height:11px;stroke-width:3}
+  .srcCell{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
 
   .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
   .modalCard{position:relative;background:#fff;border-radius:16px;box-shadow:var(--sh-lg);width:min(620px,96vw);max-height:90vh;overflow:auto;padding:22px 24px;z-index:101}
@@ -2567,7 +2571,7 @@ function renderDrawer(){
     '<div class="dlist" id="drList"></div>';
   const list=d.querySelector('#drList');
   if(!vs.length)list.innerHTML='<div class="empty">אין כלים בתא זה.</div>';
-  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top">'+(isAdmin?'<input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'>':'')+'<span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"'+rw+'></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="'+(isAdmin?'לחצו לשינוי כשירות':'')+'"'+dis+'><span class="dot"></span>'+esc(nr)+'</button>'+(isAdmin?'<select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select><button class="delVeh" data-vid="'+v.id+'" title="מחק כלי (מנהל)">'+ic('trash')+'</button>':'')+'</div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…"'+rw+'>'+esc(v.note)+'</textarea></div>';}).join('');
+  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top">'+(isAdmin?'<input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'>':'')+'<span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"'+rw+'></span>'+(v.manual?'<span class="addedTag" title="כלי שנוסף אחרי נתוני הבסיס">'+ic('plus')+'נוסף</span>':'')+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="'+(isAdmin?'לחצו לשינוי כשירות':'')+'"'+dis+'><span class="dot"></span>'+esc(nr)+'</button>'+(isAdmin?'<select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select><button class="delVeh" data-vid="'+v.id+'" title="מחק כלי (מנהל)">'+ic('trash')+'</button>':'')+'</div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…"'+rw+'>'+esc(v.note)+'</textarea></div>';}).join('');
   d.querySelector('#drClose').addEventListener('click',closeDrawer);
   const drMoveBtn=d.querySelector('#drMove');if(drMoveBtn)drMoveBtn.addEventListener('click',()=>{const to=d.querySelector('#drDest').value,ids=[...drawerSel];if(!ids.length)return;ids.forEach(id=>moveVehicle(id,to));toast(ids.length+' כלים הועברו ל־'+to,'good');closeDrawer();renderAll();});
   list.querySelectorAll('.chk').forEach(c=>c.addEventListener('change',e=>{const id=+e.target.getAttribute('data-vid');if(e.target.checked)drawerSel.add(id);else drawerSel.delete(id);updDrSel();}));
@@ -2580,10 +2584,10 @@ function renderDrawer(){
 }
 function updDrSel(){const d=document.getElementById('drawer'),n=drawerSel.size,b=d.querySelector('#drMove');if(!b)return;b.disabled=!n;d.querySelector('#drSelN').textContent=n;d.querySelector('#drHint').style.display=n?'none':'';}
 
-let tsUnits=new Set(),tsTypes=new Set(),tsStatuses=new Set(),tsFilterNotes='',tsSearch='';
+let tsUnits=new Set(),tsTypes=new Set(),tsStatuses=new Set(),tsFilterNotes='',tsFilterOrigin='',tsSearch='';
 function hasNote(v){return !!(v.note&&v.note.trim());}
 function tsFilteredRows(){
-  let rows=V.filter(v=>(!tsUnits.size||tsUnits.has(v.unit))&&(!tsTypes.size||tsTypes.has(v.type))&&(!tsStatuses.size||tsStatuses.has(normReady(v.ready)))&&(!tsFilterNotes||(tsFilterNotes==='yes'?hasNote(v):!hasNote(v))));
+  let rows=V.filter(v=>(!tsUnits.size||tsUnits.has(v.unit))&&(!tsFilterOrigin||(tsFilterOrigin==='added'?!!v.manual:!v.manual))&&(!tsTypes.size||tsTypes.has(v.type))&&(!tsStatuses.size||tsStatuses.has(normReady(v.ready)))&&(!tsFilterNotes||(tsFilterNotes==='yes'?hasNote(v):!hasNote(v))));
   if(tsSearch){const q=tsSearch.trim();rows=rows.filter(v=>(v.tsadi&&v.tsadi.indexOf(q)>=0)||(v.note&&v.note.indexOf(q)>=0));}
   rows.sort((a,b)=>U_IDX[a.unit]-U_IDX[b.unit]||TYPE_IDX[a.type]-TYPE_IDX[b.type]||(a.tsadi||'').localeCompare(b.tsadi||''));
   return rows;
@@ -2591,7 +2595,7 @@ function tsFilteredRows(){
 const TS_MS={units:{set:()=>tsUnits,label:'מסגרות',opts:()=>UNITS_ALL},types:{set:()=>tsTypes,label:'סוגי רכב',opts:()=>TYPES},statuses:{set:()=>tsStatuses,label:'סטטוסים',opts:()=>RDY}};
 function msHtml(id){const c=TS_MS[id],set=c.set(),n=set.size;return '<div class="ms" data-msid="'+id+'"><button type="button" class="msBtn'+(n?' active':'')+'">'+c.label+(n?' ('+n+')':'')+' ▾</button><div class="msPanel"><div class="msActions"><button type="button" class="msAll">בחר הכל</button><button type="button" class="msNone">נקה</button></div>'+c.opts().map(o=>'<label class="msItem"><input type="checkbox" value="'+esc(o)+'" '+(set.has(o)?'checked':'')+'>'+esc(o)+'</label>').join('')+'</div></div>';}
 function updateMsBtn(ms){const id=ms.getAttribute('data-msid'),c=TS_MS[id],n=c.set().size,b=ms.querySelector('.msBtn');b.textContent=c.label+(n?' ('+n+')':'')+' ▾';b.classList.toggle('active',!!n);}
-function tsRowHtml(v){const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other'),rw=isAdmin?'':' readonly',dis=isAdmin?'':' disabled';return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"'+rw+'></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'"'+dis+'>'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"'+rw+'></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}
+function tsRowHtml(v){const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other'),rw=isAdmin?'':' readonly',dis=isAdmin?'':' disabled';return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"'+rw+'></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'"'+dis+'>'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"'+rw+'></td><td>'+'<span class="srcCell">'+(v.manual?'<span class="addedTag" title="כלי שנוסף אחרי נתוני הבסיס">'+ic('plus')+'נוסף</span>':'')+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'')+(!v.manual&&!moved?'<span style="color:#b6c0cf">—</span>':'')+'</span></td></tr>';}
 function openTsadi(){document.getElementById('tsadiScreen').classList.remove('hidden');renderTsadi();}
 function closeTsadi(){document.getElementById('tsadiScreen').classList.add('hidden');}
 function applyTsadiFilter(){
@@ -2603,12 +2607,14 @@ function applyTsadiFilter(){
 }
 function renderTsadi(){
   const scr=document.getElementById('tsadiScreen');
+  const originOpts='<option value="">\u05de\u05e7\u05d5\u05e8: \u05d4\u05db\u05dc</option><option value="base"'+(tsFilterOrigin==='base'?' selected':'')+'>\u05e8\u05e7 \u05db\u05dc\u05d9 \u05d1\u05e1\u05d9\u05e1</option><option value="added"'+(tsFilterOrigin==='added'?' selected':'')+'>\u05e8\u05e7 \u05e9\u05e0\u05d5\u05e1\u05e4\u05d5</option>';
   const notesOpts='<option value="">הערות: הכל</option><option value="yes"'+(tsFilterNotes==='yes'?' selected':'')+'>יש הערה</option><option value="no"'+(tsFilterNotes==='no'?' selected':'')+'>אין הערה</option>';
   scr.innerHTML='<div class="tsh"><h2>'+ic('hash')+'מסך צ׳ מלא — כל הכלים</h2>'+
-    '<div id="tsadiFilters">'+msHtml('units')+msHtml('types')+msHtml('statuses')+'<select id="tsNotes" class="sel">'+notesOpts+'</select><input id="tsSearch" placeholder="חיפוש צ׳ / הערה" value="'+esc(tsSearch)+'"><span class="tsTotal">סה״כ: <b id="tsCount">0</b> כלים</span><button class="btn" id="tsExport">'+ic('download')+'ייצוא לאקסל</button><button class="btn primary" id="tsBack">'+ic('arrowLeft')+'חזרה לדשבורד</button></div></div>'+
-    '<div class="tsBody"><table class="tsTable"><thead><tr><th style="width:120px">מסגרת</th><th style="width:150px">צ׳</th><th>סוג רכב</th><th style="width:120px">כשירות</th><th>הערה</th><th style="width:100px">מקור</th></tr></thead><tbody id="tsBody"></tbody></table></div>';
+    '<div id="tsadiFilters">'+msHtml('units')+msHtml('types')+msHtml('statuses')+'<select id="tsOrigin" class="sel">'+originOpts+'</select><select id="tsNotes" class="sel">'+notesOpts+'</select><input id="tsSearch" placeholder="חיפוש צ׳ / הערה" value="'+esc(tsSearch)+'"><span class="tsTotal">סה״כ: <b id="tsCount">0</b> כלים</span><button class="btn" id="tsExport">'+ic('download')+'ייצוא לאקסל</button><button class="btn primary" id="tsBack">'+ic('arrowLeft')+'חזרה לדשבורד</button></div></div>'+
+    '<div class="tsBody"><table class="tsTable"><thead><tr><th style="width:120px">מסגרת</th><th style="width:150px">צ׳</th><th>סוג רכב</th><th style="width:120px">כשירות</th><th>הערה</th><th style="width:150px">מקור</th></tr></thead><tbody id="tsBody"></tbody></table></div>';
   scr.querySelector('#tsBack').addEventListener('click',closeTsadi);
   scr.querySelector('#tsExport').addEventListener('click',exportTsadiCSV);
+  scr.querySelector('#tsOrigin').addEventListener('change',e=>{tsFilterOrigin=e.target.value;applyTsadiFilter();});
   scr.querySelector('#tsNotes').addEventListener('change',e=>{tsFilterNotes=e.target.value;applyTsadiFilter();});
   scr.querySelector('#tsSearch').addEventListener('input',e=>{tsSearch=e.target.value;applyTsadiFilter();});
   const filt=scr.querySelector('#tsadiFilters');
@@ -2624,8 +2630,8 @@ function renderTsadi(){
 document.addEventListener('click',e=>{if(!e.target.closest('.ms'))document.querySelectorAll('.ms.open').forEach(x=>x.classList.remove('open'));});
 function exportTsadiCSV(){
   const rows=tsFilteredRows();
-  const data=[['מסגרת','צ׳','סוג רכב','כשירות','הערה','מקור (אם הועבר)']];
-  rows.forEach(v=>data.push([v.unit,v.tsadi,v.type,normReady(v.ready),v.note,(v.unit!==v.base?v.base:'')]));
+  const data=[['מסגרת','צ׳','סוג רכב','כשירות','הערה','\u05de\u05e7\u05d5\u05e8 (\u05d0\u05dd \u05d4\u05d5\u05e2\u05d1\u05e8)','\u05d1\u05e1\u05d9\u05e1 / \u05e0\u05d5\u05e1\u05e3']];
+  rows.forEach(v=>data.push([v.unit,v.tsadi,v.type,normReady(v.ready),v.note,(v.unit!==v.base?v.base:''),(v.manual?'\u05e0\u05d5\u05e1\u05e3':'\u05d1\u05e1\u05d9\u05e1')]));
   downloadXlsx('רשימת-צ-כלים-'+new Date().toISOString().slice(0,10)+'.xlsx','רשימת צ׳',data);toast('קובץ Excel יוצא — '+rows.length+' כלים (RTL)','good');
 }
 
