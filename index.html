@@ -2520,7 +2520,9 @@ function renderBaseline(){
   const w=document.getElementById('baselineTableWrap'),cols=tabTypes();
   let h='<table class="grid">'+headerRows()+'<tbody>';
   UNITS.forEach(u=>{h+='<tr class="frameRow'+(COMBAT.has(u)?' combat':'')+'"><td class="frameName">'+fnLabel(u)+'</td>'+cols.map(t=>{const n=baseCount(u,t);return '<td class="cell"><div class="cellInner"><span class="numBtn'+(n===0?' zero':'')+'" style="cursor:default">'+n+'</span></div></td>';}).join('')+'</tr>';});
-  h+='</tbody><tfoot><tr><td class="frameName">סה״כ</td>'+cols.map(t=>'<td class="totCell"><div class="totCur">'+TYPE_TOTAL[t]+'</div></td>').join('')+'</tr></tfoot></table>';
+  // footer must be the sum of the column as rendered above (baseCount), never TYPE_TOTAL,
+  // which also counts manually added vehicles and would overstate the locked baseline.
+  h+='</tbody><tfoot><tr><td class="frameName">סה״כ</td>'+cols.map(t=>'<td class="totCell"><div class="totCur">'+UNITS.reduce((s,u)=>s+baseCount(u,t),0)+'</div></td>').join('')+'</tr></tfoot></table>';
   w.innerHTML=h;
 }
 
