@@ -2004,7 +2004,7 @@
   .cell{position:relative;padding:5px 3px;min-width:70px}
   .cellInner{display:flex;align-items:center;justify-content:center;gap:3px;position:relative}
   .cellDelta{position:absolute;right:2px;top:50%;transform:translateY(-50%);font-size:10.5px;font-weight:800;padding:1px 5px;border-radius:6px;pointer-events:none;z-index:1}
-  .cellDelta.pos{color:var(--pos);background:var(--pos-bg)} .cellDelta.neg{color:var(--neg);background:var(--neg-bg)}
+  .cellDelta.pos{color:var(--pos);background:var(--pos-bg);border:1px solid var(--pos-line)} .cellDelta.neg{color:var(--neg);background:var(--neg-bg);border:1px solid var(--neg-line)}
   .cell:hover .cellDelta{opacity:0}
   .numBtn{border:none;background:transparent;font-family:inherit;font-size:17px;font-weight:800;min-width:26px;cursor:pointer;color:inherit;padding:3px 5px;border-radius:8px;transition:background .14s}
   .numBtn:hover{background:var(--brand-soft)}
@@ -2389,7 +2389,9 @@ function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','
 function byId(id){return V.find(v=>v.id===id);}
 function inCell(u,t){return V.filter(v=>v.unit===u&&v.type===t);}
 function count(u,t){return inCell(u,t).length;}
-function baseCount(u,t){return V.filter(v=>v.base===u&&v.type===t).length;}
+// Baseline = the original embedded data only. Manually added vehicles carry base===unit,
+// so counting them here would cancel out their own delta and inflate the locked base table.
+function baseCount(u,t){return V.filter(v=>!v.manual&&v.base===u&&v.type===t).length;}
 function curTotal(t){return V.filter(v=>v.type===t).length;}
 function poolCount(t){return count(POOL,t);}
 function tabCats(){return activeTab===RAKEM_TAB?CATS_R:CATS_V;}
