@@ -2228,12 +2228,6 @@
       <span class="sep"></span>
       <button class="btn danger" id="btnReset" data-ic="reset">איפוס</button>
       <span class="sep"></span>
-      <select class="sel" id="savedSel"><option value="">— תרחישים שמורים —</option></select>
-      <button class="btn ghost" id="btnLoad">טען</button>
-      <button class="btn ghost" id="btnSave" data-ic="save">שמור</button>
-      <button class="btn ghost" id="btnDelSaved" data-ic="trash">מחק</button>
-      <button class="btn ghost" id="btnStartup" data-ic="star">קבע כפתיחה</button>
-      <span class="sep"></span>
       <button class="btn primary" id="btnCsv" data-ic="download">ייצוא Excel</button>
       <button class="btn" id="btnPrint" data-ic="printer">PDF</button>
     </div>
@@ -2287,6 +2281,9 @@
 <div id="modalHost"></div>
 <div class="toast" id="toast"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
 <script>
 (function(){
 "use strict";
@@ -2361,8 +2358,10 @@ const TYPE_TOTAL={}; function recomputeTotals(){TYPES.forEach(t=>TYPE_TOTAL[t]=V
 recomputeTotals();
 function nextManualId(){let m=800000;manualAdded.forEach(a=>{if(a.id>m)m=a.id;});V.forEach(v=>{if(v.id>=800000&&v.id<900000&&v.id>m)m=v.id;});return m+1;}
 
-const ADMIN_HASH='2082dd15c358c81bbd4e73a3d971623f961dd2f4d418a69b6e61ef00260335b0';
-let isAdmin=false; try{isAdmin=localStorage.getItem('vr_admin')==='1';}catch(e){}
+const ADMIN_EMAIL='idoshaya2@gmail.com';
+let isAdmin=false; // driven by Firebase Auth
+let DB=null,AUTH=null,STATE_DOC=null,fbReady=false,applyingRemote=false,pushTimer=null;
+const FIREBASE_CONFIG={apiKey:"AIzaSyBSaEYygW3cyIPFW8ZxNBu6KJE_iW-PyJo",authDomain:"vehicle---distribution.firebaseapp.com",projectId:"vehicle---distribution",storageBucket:"vehicle---distribution.firebasestorage.app",messagingSenderId:"42553835340",appId:"1:42553835340:web:1726c752a33a584e75d9e9"};
 
 let log=[]; let targets={};
 let activeTab='רכב', tgType='האמר סיור', targetsOpen=false, baseOpen=false;
@@ -2380,7 +2379,35 @@ function tabCats(){return activeTab===RAKEM_TAB?CATS_R:CATS_V;}
 function tabTypes(){return tabCats().flatMap(c=>TYPES.filter(t=>TYPE_CAT[t]===c));}
 let toastTimer;function toast(m,t){const el=document.getElementById('toast');el.innerHTML=(t==='err'?ic('alert'):t==='good'?ic('check'):'')+'<span>'+esc(m)+'</span>';el.className='toast show'+(t?' '+t:'');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.className='toast',2600);}
 
-function save(){try{localStorage.setItem(LS,JSON.stringify({v:V.map(v=>({id:v.id,unit:v.unit,tsadi:v.tsadi,note:v.note,ready:v.ready})),log,targets}));}catch(e){}}
+function save(){try{localStorage.setItem(LS,JSON.stringify({v:V.map(v=>({id:v.id,unit:v.unit,tsadi:v.tsadi,note:v.note,ready:v.ready})),added:manualAdded,removed:manualRemoved,log}));}catch(e){} pushState();}
+/* ---------- Firestore shared-state sync ---------- */
+function serializeState(){const veh={};V.forEach(v=>{veh[v.id]={u:v.unit,t:v.tsadi||'',n:v.note||'',r:v.ready||'כשיר'};});return {veh,added:manualAdded||[],removed:manualRemoved||[],log:log||[],updatedAt:(window.firebase&&firebase.firestore&&firebase.firestore.FieldValue?firebase.firestore.FieldValue.serverTimestamp():Date.now()),updatedBy:(AUTH&&AUTH.currentUser&&AUTH.currentUser.email)||''};}
+function pushState(){if(!STATE_DOC||!isAdmin||applyingRemote||!fbReady)return;clearTimeout(pushTimer);pushTimer=setTimeout(()=>{STATE_DOC.set(serializeState()).catch(e=>toast('שמירה לענן נכשלה'+(e&&e.code?' ('+e.code+')':''),'err'));},400);}
+function rebuildBaseV(veh,removedSet,added){
+  V.length=0;let vid=1;
+  TYPES.forEach(type=>{const row=DATA.matrix[type]||[];MUNITS.forEach((u,i)=>{const n=row[i]||0,q=ROSTER_Q[u+'|'+type]||[];for(let k=0;k<n;k++){const id=vid++;if(removedSet.has(id))continue;const info=q[k]||{},m=veh[id]||{};V.push({id,type,base:u,unit:m.u||u,tsadi:(m.t!=null?m.t:(info.tsadi||'')),note:(m.n!=null?m.n:(info.note||'')),ready:m.r||'כשיר'});}});});
+  (DATA.extraVehicles||[]).forEach((e,i)=>{const id=900001+i;if(removedSet.has(id))return;const m=veh[id]||{};V.push({id,type:e[1],base:e[0],unit:m.u||e[0],tsadi:(m.t!=null?m.t:(e[2]||'')),note:(m.n!=null?m.n:''),ready:m.r||'כשיר'});});
+  (added||[]).forEach(a=>{if(removedSet.has(a.id))return;const m=veh[a.id]||{};V.push({id:a.id,type:a.type,base:a.unit,unit:m.u||a.unit,tsadi:(m.t!=null?m.t:(a.tsadi||'')),note:(m.n!=null?m.n:(a.note||'')),ready:m.r||a.ready||'כשיר',manual:true});});
+}
+function applyState(s){s=s||{};const removedSet=new Set(s.removed||[]);manualAdded=s.added||[];manualRemoved=s.removed||[];rebuildBaseV(s.veh||{},removedSet,manualAdded);log=s.log||[];V.forEach(v=>v.ready=normReady(v.ready));recomputeTotals();}
+function applyEmbeddedSeed(){
+  V.forEach(v=>v.unit=v.base);
+  if(DEFAULT_SCENARIO&&DEFAULT_SCENARIO.v){const um={};DEFAULT_SCENARIO.v.forEach(sv=>um[sv.id]=sv.unit);V.forEach(v=>{if(um[v.id])v.unit=um[v.id];});log=DEFAULT_SCENARIO.log?JSON.parse(JSON.stringify(DEFAULT_SCENARIO.log)):[];}
+  V.forEach(v=>{if(v.tsadi&&DEFAULT_READINESS[v.tsadi])v.ready=DEFAULT_READINESS[v.tsadi];v.ready=normReady(v.ready);});
+  recomputeTotals();
+}
+function setupFirebase(){
+  if(typeof firebase==='undefined'){toast('אופליין — מוצג מצב מוטמע (אין סנכרון ענן)','err');return;}
+  try{
+    firebase.initializeApp(FIREBASE_CONFIG);DB=firebase.firestore();AUTH=firebase.auth();STATE_DOC=DB.collection('state').doc('current');
+    AUTH.onAuthStateChanged(u=>{isAdmin=!!(u&&u.email&&u.email.toLowerCase()===ADMIN_EMAIL);updateAdminUI();if(isAdmin&&STATE_DOC){STATE_DOC.get().then(d=>{if(!d.exists){fbReady=true;pushState();}}).catch(()=>{});}});
+    STATE_DOC.onSnapshot(snap=>{
+      if(snap.metadata&&snap.metadata.hasPendingWrites)return;
+      if(snap.exists){applyingRemote=true;applyState(snap.data());applyingRemote=false;fbReady=true;renderAll();}
+      else{fbReady=true;if(isAdmin)pushState();}
+    },err=>{toast('חיבור לענן נכשל'+(err&&err.code?' ('+err.code+')':''),'err');fbReady=true;});
+  }catch(e){toast('אתחול ענן נכשל','err');}
+}
 function load(){try{const r=localStorage.getItem(LS);if(r){const o=JSON.parse(r);if(o&&o.v){o.v.forEach(sv=>{const v=byId(sv.id);if(v){v.unit=normUnit(sv.unit);if(sv.tsadi)v.tsadi=sv.tsadi;if(sv.note)v.note=sv.note;v.ready=sv.ready||'כשיר';}});log=o.log||[];targets=o.targets||{};return true;}}}catch(e){}return false;}
 // recover readiness (כשירות) edits orphaned under older versioned state keys
 function migrateReadiness(){try{for(let i=12;i>=1;i--){const raw=localStorage.getItem('vr_state_v'+i);if(!raw)continue;let o;try{o=JSON.parse(raw);}catch(e){continue;}if(!o||!o.v)continue;o.v.forEach(sv=>{if(sv&&sv.ready&&sv.ready!=='כשיר'){const v=byId(sv.id);if(v&&v.ready==='כשיר')v.ready=sv.ready;}});}save();}catch(e){}}
@@ -2401,9 +2428,9 @@ function migrateSavedScenarios(){try{const cur=savedScenarios();let changed=fals
   for(let i=1;i<=12;i++){const k='vr_saved_v'+i;const raw=localStorage.getItem(k);if(!raw)continue;try{const o=JSON.parse(raw);Object.keys(o).forEach(name=>{if(!(name in cur)){cur[name]=o[name];changed=true;}});}catch(e){}}
   if(changed)writeSaved(cur);}catch(e){}}
 
-function moveVehicle(vid,to,opts){opts=opts||{};const v=byId(vid);if(!v)return false;const from=v.unit;if(from===to){if(!opts.silent)toast('מקור ויעד זהים','err');return false;}v.unit=to;if(opts.log!==false)log.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,6),t:Date.now(),vid,tsadi:v.tsadi,type:v.type,from,to});save();return true;}
+function moveVehicle(vid,to,opts){opts=opts||{};if(!isAdmin){if(!opts.silent)toast('צפייה בלבד — התחבר כמנהל כדי לשנות','err');return false;}const v=byId(vid);if(!v)return false;const from=v.unit;if(from===to){if(!opts.silent)toast('מקור ויעד זהים','err');return false;}v.unit=to;if(opts.log!==false)log.push({id:'m'+Date.now()+Math.random().toString(36).slice(2,6),t:Date.now(),vid,tsadi:v.tsadi,type:v.type,from,to});save();return true;}
 function moveQty(type,from,to,qty){qty=Math.floor(qty);if(from===to){toast('מקור ויעד זהים','err');return false;}if(!(qty>0)){toast('כמות לא תקינה','err');return false;}const list=inCell(from,type);if(list.length<qty){toast('אין מספיק «'+type+'» ב־'+from+' (קיימים '+list.length+')','err');return false;}for(let i=0;i<qty;i++)moveVehicle(list[i].id,to);return true;}
-function undoLast(){if(!log.length){toast('אין תנועות','err');return;}const e=log[log.length-1];const v=byId(e.vid);if(v&&v.unit===e.to){v.unit=e.from;log.pop();save();renderAll();toast('בוטלה תנועה אחרונה','good');}else toast('לא ניתן לבטל','err');}
+function undoLast(){if(!isAdmin){toast('צפייה בלבד — נדרש מנהל','err');return;}if(!log.length){toast('אין תנועות','err');return;}const e=log[log.length-1];const v=byId(e.vid);if(v&&v.unit===e.to){v.unit=e.from;log.pop();save();renderAll();toast('בוטלה תנועה אחרונה','good');}else toast('לא ניתן לבטל','err');}
 function deleteLogEntry(id){const i=log.findIndex(e=>e.id===id);if(i<0)return;const e=log[i];const v=byId(e.vid);if(v&&v.unit===e.to){v.unit=e.from;log.splice(i,1);save();renderAll();}else toast('לא ניתן לבטל — הכלי הוזז שוב מאז','err');}
 
 function computeFlows(){
@@ -2609,17 +2636,16 @@ function importTsadi(text){
 }
 
 /* ---------- admin: add / remove vehicles (manager-only) ---------- */
-async function sha256hex(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
-function setAdmin(on){isAdmin=on;try{if(on)localStorage.setItem('vr_admin','1');else localStorage.removeItem('vr_admin');}catch(e){}updateAdminUI();}
 async function toggleAdmin(){
-  if(isAdmin){setAdmin(false);toast('מצב מנהל כבוי','good');return;}
-  const pw=prompt('סיסמת מנהל:');if(pw==null)return;
-  try{const h=await sha256hex(pw);if(h===ADMIN_HASH){setAdmin(true);toast('מצב מנהל פעיל ✓','good');}else toast('סיסמה שגויה','err');}catch(e){toast('בדיקת סיסמה זמינה רק בכתובת מאובטחת (https)','err');}
+  if(!AUTH){toast('התחברות זמינה רק באתר החי (לא בקובץ מקומי)','err');return;}
+  if(isAdmin){ try{await AUTH.signOut();}catch(e){} toast('התנתקת ממצב מנהל','good');return;}
+  const pw=prompt('סיסמת מנהל (עבור '+ADMIN_EMAIL+'):');if(pw==null)return;
+  try{await AUTH.signInWithEmailAndPassword(ADMIN_EMAIL,pw);toast('מצב מנהל פעיל ✓','good');}
+  catch(e){toast('התחברות נכשלה'+(e&&e.code?' ('+e.code+')':''),'err');}
 }
 function updateAdminUI(){
   const b=document.getElementById('btnAdmin');if(b){b.classList.toggle('adminOn',isAdmin);b.innerHTML=ic(isAdmin?'unlock':'lock')+(isAdmin?'מנהל ✓':'מנהל');}
-  const add=document.getElementById('btnAddVeh');if(add)add.style.display=isAdmin?'':'none';
-  const imp=document.getElementById('btnImport');if(imp)imp.style.display=isAdmin?'':'none';
+  ['btnAddVeh','btnImport','btnReset','btnUndo','btnClearLog'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isAdmin?'':'none';});
   if(drawerKey)renderDrawer();
   if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();
 }
@@ -2687,13 +2713,9 @@ document.getElementById('tabs').addEventListener('click',e=>{const b=e.target.cl
 
 function refreshSavedSel(){const s=document.getElementById('savedSel'),o=savedScenarios(),n=Object.keys(o),su=getStartupName();s.innerHTML='<option value="">— תרחישים שמורים ('+n.length+') —</option>'+n.map(x=>'<option value="'+esc(x)+'">'+esc(x)+(x===su?' ★ פתיחה':'')+'</option>').join('');}
 function resetScenario(){V.forEach(v=>v.unit=v.base);log=[];}
-document.getElementById('btnReset').addEventListener('click',()=>{if(!confirm('לאפס את הוויסות לבסיס? הלוג יימחק (הצ׳ וההערות יישמרו).'))return;resetScenario();save();renderAll();toast('אופס לבסיס','good');});
-document.getElementById('btnSave').addEventListener('click',()=>{const n=prompt('שם לתרחיש:','תרחיש '+new Date().toLocaleString('he-IL'));if(!n)return;const o=savedScenarios();o[n]={v:V.map(v=>({id:v.id,unit:v.unit})),log,targets};writeSaved(o);refreshSavedSel();toast('נשמר: '+n,'good');});
-document.getElementById('btnLoad').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}const s=savedScenarios()[n];if(!s)return;if(!confirm('לטעון «'+n+'»? הוויסות הנוכחי יוחלף.'))return;s.v.forEach(sv=>{const v=byId(sv.id);if(v)v.unit=sv.unit;});log=s.log||[];targets=s.targets||{};save();renderAll();toast('נטען: '+n,'good');});
-document.getElementById('btnDelSaved').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש','err');return;}if(!confirm('למחוק «'+n+'»?'))return;const o=savedScenarios();delete o[n];writeSaved(o);if(getStartupName()===n)setStartupName('');refreshSavedSel();toast('נמחק','good');});
-document.getElementById('btnStartup').addEventListener('click',()=>{const n=document.getElementById('savedSel').value;if(!n){toast('בחרו תרחיש מהרשימה כדי לקבוע אותו כתרחיש הפתיחה','err');return;}if(!savedScenarios()[n]){toast('תרחיש לא קיים','err');return;}setStartupName(n);refreshSavedSel();toast('«'+n+'» ייפתח אוטומטית בכל פתיחה ★','good');});
+document.getElementById('btnReset').addEventListener('click',()=>{if(!isAdmin){toast('צפייה בלבד — נדרש מנהל','err');return;}if(!confirm('לאפס את הוויסות לבסיס? הלוג יימחק (הצ׳ וההערות יישמרו).'))return;resetScenario();save();renderAll();toast('אופס לבסיס','good');});
 document.getElementById('btnUndo').addEventListener('click',undoLast);
-document.getElementById('btnClearLog').addEventListener('click',()=>{if(!log.length){toast('הלוג ריק','err');return;}if(!confirm('לנקות לוג ולהחזיר לבסיס?'))return;resetScenario();save();renderAll();toast('נוקה','good');});
+document.getElementById('btnClearLog').addEventListener('click',()=>{if(!isAdmin){toast('צפייה בלבד — נדרש מנהל','err');return;}if(!log.length){toast('הלוג ריק','err');return;}if(!confirm('לנקות לוג ולהחזיר לבסיס?'))return;resetScenario();save();renderAll();toast('נוקה','good');});
 document.getElementById('btnToggleBase').addEventListener('click',()=>{baseOpen=!baseOpen;document.getElementById('baselineTableWrap').style.display=baseOpen?'block':'none';});
 document.getElementById('btnTsadi').addEventListener('click',openTsadi);
 document.getElementById('btnImport').addEventListener('click',openImport);
@@ -2746,22 +2768,10 @@ function exportCSV(){
 function paintStaticIcons(){document.getElementById('logoBox').innerHTML=ic('truck');document.querySelectorAll('[data-ic]').forEach(el=>el.insertAdjacentHTML('afterbegin',ic(el.getAttribute('data-ic'))));}
 function renderAll(){renderScenario();renderBalance();renderFlows();renderLog();renderSummary();fillFrames();if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();if(drawerKey)renderDrawer();}
 
-migrateSavedScenarios();
-// capture any local (non-כשיר) status edits BEFORE applyScenario's save() can clobber them
-const _localReady={};
-for(let _i=12;_i>=1;_i--){try{const _raw=localStorage.getItem('vr_state_v'+_i);if(_raw){const _o=JSON.parse(_raw);if(_o&&_o.v)_o.v.forEach(sv=>{if(sv&&sv.id!=null&&sv.ready&&sv.ready!=='כשיר'&&!(sv.id in _localReady))_localReady[sv.id]=sv.ready;});}}catch(e){}}
-(function(){
-  // 1) explicit per-device startup override  2) universal embedded default  3) local "1"  4) working state / baseline
-  let explicit=null; try{explicit=localStorage.getItem('vr_startup');}catch(e){}
-  let done=false;
-  if(explicit){const s=findScenario(explicit); if(s){applyScenario(s);done=true;}}
-  if(!done && DEFAULT_SCENARIO && DEFAULT_SCENARIO.v){ applyScenario(DEFAULT_SCENARIO); done=true; }
-  if(!done){const s1=findScenario('1'); if(s1){applyScenario(s1);done=true;}}
-  if(!done && !load()) applyDefaultMoves();
-})();
-// readiness: embedded universal statuses as base, then local non-כשיר edits layered on top (always applied — survives reload)
-V.forEach(v=>{ if(v.tsadi&&DEFAULT_READINESS[v.tsadi]) v.ready=DEFAULT_READINESS[v.tsadi]; if(_localReady[v.id]) v.ready=_localReady[v.id]; v.ready=normReady(v.ready); });
-paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();updateAdminUI();
+// initial paint from the embedded seed (also the fallback when offline); Firestore then overrides live
+applyEmbeddedSeed();
+paintStaticIcons();renderBaseline();bindScenario();renderAll();updateAdminUI();
+setupFirebase();
 })();
 </script>
 </body>
