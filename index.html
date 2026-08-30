@@ -2003,6 +2003,7 @@
   .numBtn:hover{background:var(--brand-soft)}
   .numBtn.zero{color:#cbd5e3;font-weight:600;cursor:default}
   .numBtn.zero:hover{background:transparent}
+  body.viewer .stp{display:none!important}
   .stp{border:none;background:#eef2f9;color:#5a6577;width:23px;height:23px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s,background .15s,color .15s}
   .stp .ic{width:14px;height:14px;stroke-width:2.6}
   .cell:hover .stp{opacity:1}
@@ -2532,7 +2533,7 @@ function renderSummary(){
 
 
 function closePopover(){const p=document.getElementById('popover');p.className='popover hidden';p.innerHTML='';}
-function openChooser(anchor,u,t,mode){
+function openChooser(anchor,u,t,mode){if(!isAdmin){toast('צפייה בלבד — התחבר כמנהל כדי לשנות','err');return;}
   const p=document.getElementById('popover'),others=UNITS_ALL.filter(x=>x!==u),list=mode==='plus'?others.filter(x=>count(x,t)>0):others;
   const title=mode==='plus'?'הוסף 1 «'+t+'» ל־'+u+' — מאיפה?':'הורד 1 «'+t+'» מ־'+u+' — לאן?';
   let html='<div class="pt">'+esc(title)+'</div>';
@@ -2548,18 +2549,19 @@ function closeDrawer(){document.getElementById('drawer').classList.remove('show'
 function renderDrawer(){
   if(!drawerKey)return;const u=drawerKey.u,t=drawerKey.t,vs=inCell(u,t),d=document.getElementById('drawer');
   const destOpts=UNITS_ALL.filter(x=>x!==u).map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('');
-  d.innerHTML='<div class="dh"><div><div class="dt">'+(u===POOL?ic('inbox'):COMBAT.has(u)?ic('shield'):ic('truck'))+esc(t)+'</div><div class="dsub">מסגרת '+esc(u)+' · '+vs.length+' כלים · בחרו לפי צ׳ והעבירו</div></div><button class="close" id="drClose">'+ic('x')+'חזרה</button></div>'+
-    '<div class="dbulk"><label style="font-weight:700;color:var(--muted)">העבר נבחרים ל־</label><select id="drDest">'+destOpts+'</select><button class="mv" id="drMove" disabled>'+ic('move')+'העבר (<span id="drSelN">0</span>)</button><span style="color:var(--muted)" id="drHint">סמנו כלים ברשימה</span></div>'+
+  const rw=isAdmin?'':' readonly',dis=isAdmin?'':' disabled';
+  d.innerHTML='<div class="dh"><div><div class="dt">'+(u===POOL?ic('inbox'):COMBAT.has(u)?ic('shield'):ic('truck'))+esc(t)+'</div><div class="dsub">מסגרת '+esc(u)+' · '+vs.length+' כלים · '+(isAdmin?'בחרו לפי צ׳ והעבירו':'צפייה בלבד')+'</div></div><button class="close" id="drClose">'+ic('x')+'חזרה</button></div>'+
+    (isAdmin?'<div class="dbulk"><label style="font-weight:700;color:var(--muted)">העבר נבחרים ל־</label><select id="drDest">'+destOpts+'</select><button class="mv" id="drMove" disabled>'+ic('move')+'העבר (<span id="drSelN">0</span>)</button><span style="color:var(--muted)" id="drHint">סמנו כלים ברשימה</span></div>':'')+
     '<div class="dlist" id="drList"></div>';
   const list=d.querySelector('#drList');
   if(!vs.length)list.innerHTML='<div class="empty">אין כלים בתא זה.</div>';
-  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top"><input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'><span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="לחצו לשינוי כשירות"><span class="dot"></span>'+esc(nr)+'</button><select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select>'+(isAdmin?'<button class="delVeh" data-vid="'+v.id+'" title="מחק כלי (מנהל)">'+ic('trash')+'</button>':'')+'</div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…">'+esc(v.note)+'</textarea></div>';}).join('');
+  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top">'+(isAdmin?'<input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'>':'')+'<span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"'+rw+'></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="'+(isAdmin?'לחצו לשינוי כשירות':'')+'"'+dis+'><span class="dot"></span>'+esc(nr)+'</button>'+(isAdmin?'<select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select><button class="delVeh" data-vid="'+v.id+'" title="מחק כלי (מנהל)">'+ic('trash')+'</button>':'')+'</div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…"'+rw+'>'+esc(v.note)+'</textarea></div>';}).join('');
   d.querySelector('#drClose').addEventListener('click',closeDrawer);
-  d.querySelector('#drMove').addEventListener('click',()=>{const to=d.querySelector('#drDest').value,ids=[...drawerSel];if(!ids.length)return;ids.forEach(id=>moveVehicle(id,to));toast(ids.length+' כלים הועברו ל־'+to,'good');closeDrawer();renderAll();});
+  const drMoveBtn=d.querySelector('#drMove');if(drMoveBtn)drMoveBtn.addEventListener('click',()=>{const to=d.querySelector('#drDest').value,ids=[...drawerSel];if(!ids.length)return;ids.forEach(id=>moveVehicle(id,to));toast(ids.length+' כלים הועברו ל־'+to,'good');closeDrawer();renderAll();});
   list.querySelectorAll('.chk').forEach(c=>c.addEventListener('change',e=>{const id=+e.target.getAttribute('data-vid');if(e.target.checked)drawerSel.add(id);else drawerSel.delete(id);updDrSel();}));
-  list.querySelectorAll('.tsadiVal').forEach(inp=>inp.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.tsadi=e.target.value.trim();save();renderFlows();renderLog();e.target.classList.toggle('empty',!v.tsadi);}}));
-  list.querySelectorAll('.note').forEach(n=>n.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.note=e.target.value;save();}}));
-  list.querySelectorAll('.rdy').forEach(b=>b.addEventListener('click',()=>{const v=byId(+b.getAttribute('data-vid'));if(v){const ci=RDY.indexOf(normReady(v.ready));v.ready=RDY[(ci+1)%RDY.length];save();renderDrawer();renderScenario();}}));
+  list.querySelectorAll('.tsadiVal').forEach(inp=>inp.addEventListener('change',e=>{if(!isAdmin)return;const v=byId(+e.target.getAttribute('data-vid'));if(v){v.tsadi=e.target.value.trim();save();renderFlows();renderLog();e.target.classList.toggle('empty',!v.tsadi);}}));
+  list.querySelectorAll('.note').forEach(n=>n.addEventListener('change',e=>{if(!isAdmin)return;const v=byId(+e.target.getAttribute('data-vid'));if(v){v.note=e.target.value;save();}}));
+  list.querySelectorAll('.rdy').forEach(b=>b.addEventListener('click',()=>{if(!isAdmin)return;const v=byId(+b.getAttribute('data-vid'));if(v){const ci=RDY.indexOf(normReady(v.ready));v.ready=RDY[(ci+1)%RDY.length];save();renderDrawer();renderScenario();}}));
   list.querySelectorAll('.mvOne').forEach(s=>s.addEventListener('change',e=>{const to=e.target.value;if(!to)return;const id=+e.target.getAttribute('data-vid'),v=byId(id);moveVehicle(id,to);toast(v.type+' צ׳ '+(v.tsadi||'—')+' → '+to,'good');renderAll();renderDrawer();}));
   list.querySelectorAll('.delVeh').forEach(b=>b.addEventListener('click',()=>removeVehicle(+b.getAttribute('data-vid'))));
   updDrSel();
@@ -2577,15 +2579,15 @@ function tsFilteredRows(){
 const TS_MS={units:{set:()=>tsUnits,label:'מסגרות',opts:()=>UNITS_ALL},types:{set:()=>tsTypes,label:'סוגי רכב',opts:()=>TYPES},statuses:{set:()=>tsStatuses,label:'סטטוסים',opts:()=>RDY}};
 function msHtml(id){const c=TS_MS[id],set=c.set(),n=set.size;return '<div class="ms" data-msid="'+id+'"><button type="button" class="msBtn'+(n?' active':'')+'">'+c.label+(n?' ('+n+')':'')+' ▾</button><div class="msPanel"><div class="msActions"><button type="button" class="msAll">בחר הכל</button><button type="button" class="msNone">נקה</button></div>'+c.opts().map(o=>'<label class="msItem"><input type="checkbox" value="'+esc(o)+'" '+(set.has(o)?'checked':'')+'>'+esc(o)+'</label>').join('')+'</div></div>';}
 function updateMsBtn(ms){const id=ms.getAttribute('data-msid'),c=TS_MS[id],n=c.set().size,b=ms.querySelector('.msBtn');b.textContent=c.label+(n?' ('+n+')':'')+' ▾';b.classList.toggle('active',!!n);}
-function tsRowHtml(v){const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other');return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'">'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}
+function tsRowHtml(v){const moved=v.unit!==v.base,st=normReady(v.ready),stc=(st==='כשיר'?'ok':st==='מוגבל'?'lim':st==='מושבת'?'off':'other'),rw=isAdmin?'':' readonly',dis=isAdmin?'':' disabled';return '<tr><td><span class="uchip'+(COMBAT.has(v.unit)?' combat':'')+'">'+(v.unit===POOL?ic('inbox'):COMBAT.has(v.unit)?ic('shield'):'')+esc(v.unit)+'</span></td><td class="tsadiCol"><input class="tsIn" data-f="tsadi" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳"'+rw+'></td><td>'+esc(v.type)+'</td><td><select class="rdySel st-'+stc+'" data-vid="'+v.id+'"'+dis+'>'+RDY.map(r=>'<option'+(r===st?' selected':'')+'>'+r+'</option>').join('')+'</select></td><td><input class="tsIn" data-f="note" data-vid="'+v.id+'" value="'+esc(v.note)+'" placeholder="—"'+rw+'></td><td>'+(moved?'<span class="movedTag">מ'+esc(v.base)+'</span>':'<span style="color:#b6c0cf">—</span>')+'</td></tr>';}
 function openTsadi(){document.getElementById('tsadiScreen').classList.remove('hidden');renderTsadi();}
 function closeTsadi(){document.getElementById('tsadiScreen').classList.add('hidden');}
 function applyTsadiFilter(){
   const rows=tsFilteredRows(),tb=document.getElementById('tsBody');if(!tb)return;
   tb.innerHTML=rows.length?rows.map(tsRowHtml).join(''):'<tr><td colspan="6" class="empty">לא נמצאו כלים לסינון הזה.</td></tr>';
   const cnt=document.getElementById('tsCount');if(cnt)cnt.textContent=rows.length;
-  tb.querySelectorAll('.tsIn').forEach(inp=>inp.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(!v)return;const f=e.target.getAttribute('data-f');v[f]=(f==='tsadi')?e.target.value.trim():e.target.value;save();renderFlows();renderLog();applyTsadiFilter();}));
-  tb.querySelectorAll('.rdySel').forEach(s=>s.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.ready=e.target.value;save();renderScenario();applyTsadiFilter();}}));
+  tb.querySelectorAll('.tsIn').forEach(inp=>inp.addEventListener('change',e=>{if(!isAdmin)return;const v=byId(+e.target.getAttribute('data-vid'));if(!v)return;const f=e.target.getAttribute('data-f');v[f]=(f==='tsadi')?e.target.value.trim():e.target.value;save();renderFlows();renderLog();applyTsadiFilter();}));
+  tb.querySelectorAll('.rdySel').forEach(s=>s.addEventListener('change',e=>{if(!isAdmin)return;const v=byId(+e.target.getAttribute('data-vid'));if(v){v.ready=e.target.value;save();renderScenario();applyTsadiFilter();}}));
 }
 function renderTsadi(){
   const scr=document.getElementById('tsadiScreen');
@@ -2645,6 +2647,7 @@ async function toggleAdmin(){
 }
 function updateAdminUI(){
   const b=document.getElementById('btnAdmin');if(b){b.classList.toggle('adminOn',isAdmin);b.innerHTML=ic(isAdmin?'unlock':'lock')+(isAdmin?'מנהל ✓':'מנהל');}
+  document.body.classList.toggle('viewer',!isAdmin);
   ['btnAddVeh','btnImport','btnReset','btnUndo','btnClearLog'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display=isAdmin?'':'none';});
   if(drawerKey)renderDrawer();
   if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();
@@ -2701,7 +2704,7 @@ function bindScenario(){
     if(cell){e.stopPropagation();const u=cell.getAttribute('data-u'),t=cell.getAttribute('data-t');if(count(u,t)>0)openDrawer(u,t);}
   });
   let drag=null;
-  w.addEventListener('dragstart',e=>{const c=e.target.closest('.cell[draggable=true]');if(!c)return;drag={u:c.getAttribute('data-u'),t:c.getAttribute('data-t')};c.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','x');}catch(x){}});
+  w.addEventListener('dragstart',e=>{if(!isAdmin){e.preventDefault();return;}const c=e.target.closest('.cell[draggable=true]');if(!c)return;drag={u:c.getAttribute('data-u'),t:c.getAttribute('data-t')};c.classList.add('dragging');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text/plain','x');}catch(x){}});
   w.addEventListener('dragend',()=>{w.querySelectorAll('.dragging,.dropok').forEach(c=>c.classList.remove('dragging','dropok'));drag=null;});
   w.addEventListener('dragover',e=>{const c=e.target.closest('.cell[draggable=true]');if(!c||!drag)return;if(c.getAttribute('data-t')===drag.t&&c.getAttribute('data-u')!==drag.u){e.preventDefault();c.classList.add('dropok');}});
   w.addEventListener('dragleave',e=>{const c=e.target.closest('.cell');if(c)c.classList.remove('dropok');});
