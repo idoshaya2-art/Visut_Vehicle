@@ -2178,6 +2178,15 @@
   .modalCard textarea{width:100%;min-height:150px;border:1px solid var(--line);border-radius:11px;padding:11px 13px;font-family:"Rubik",monospace;font-size:13px;direction:rtl;background:#fbfcfe;resize:vertical}
   .modalCard textarea:focus{outline:none;border-color:var(--brand2);box-shadow:0 0 0 3px var(--brand-soft)}
   .modalActions{display:flex;gap:10px;justify-content:flex-start;margin-top:14px;flex-wrap:wrap}
+  .avForm{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .avForm label{display:flex;flex-direction:column;gap:5px;font-size:12px;font-weight:700;color:var(--ink2)}
+  .avForm label.wide{grid-column:1 / -1}
+  .avForm select,.avForm input{font-family:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:10px;background:#fbfcfe}
+  .avForm select:focus,.avForm input:focus{outline:none;border-color:var(--brand2);box-shadow:0 0 0 3px var(--brand-soft)}
+  .btn.adminOn{background:var(--pos-bg);color:var(--pos);border-color:var(--pos-line)}
+  .vcard .delVeh{border:1px solid var(--neg-line);background:var(--neg-bg);color:var(--neg);border-radius:9px;padding:6px 8px;cursor:pointer;display:inline-flex}
+  .vcard .delVeh:hover{background:var(--neg);color:#fff}
+  .vcard .delVeh .ic{width:14px;height:14px}
 
   .popover{position:fixed;z-index:110;background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:var(--sh-lg);padding:9px;min-width:210px;animation:pop .14s var(--ease)}
   @keyframes pop{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:none}}
@@ -2213,7 +2222,9 @@
     <span class="hdrBalance" id="balanceChip"></span>
     <div class="toolbar">
       <button class="btn" id="btnTsadi" data-ic="hash">מסך צ׳ מלא</button>
-      <button class="btn" id="btnImport" data-ic="upload">ייבוא צ׳</button>
+      <button class="btn" id="btnImport" data-ic="upload" style="display:none">ייבוא צ׳</button>
+      <button class="btn" id="btnAddVeh" data-ic="plus" style="display:none">הוסף כלי</button>
+      <button class="btn" id="btnAdmin">מנהל</button>
       <span class="sep"></span>
       <button class="btn danger" id="btnReset" data-ic="reset">איפוס</button>
       <span class="sep"></span>
@@ -2301,6 +2312,7 @@ const P={
   alert:'<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
   layers:'<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>',
   lock:'<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  unlock:'<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
   chart:'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
   shuffle:'<polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/>',
   list:'<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
@@ -2339,7 +2351,18 @@ const ROSTER_Q={}; (DATA.roster||[]).forEach(r=>{ const k=r[0]+'|'+r[1]; (ROSTER
 TYPES.forEach(type=>{ const row=DATA.matrix[type]||[]; MUNITS.forEach((u,i)=>{ const n=row[i]||0; const q=ROSTER_Q[u+'|'+type]||[]; for(let k=0;k<n;k++){ const info=q[k]||{}; V.push({id:VID++,type,base:u,unit:u,tsadi:info.tsadi||'',note:info.note||'',ready:'כשיר'}); } }); });
 // extra vehicles appended with fixed high IDs (keeps existing IDs stable across data additions)
 (DATA.extraVehicles||[]).forEach((e,i)=>{ V.push({id:900001+i,type:e[1],base:e[0],unit:e[0],tsadi:e[2]||'',note:e[3]||'',ready:'כשיר'}); });
-const TYPE_TOTAL={}; TYPES.forEach(t=>TYPE_TOTAL[t]=V.filter(v=>v.type===t).length);
+// manual admin additions/removals (persisted per device)
+let manualAdded=[],manualRemoved=[];
+try{manualAdded=JSON.parse(localStorage.getItem('vr_added')||'[]')||[];}catch(e){}
+try{manualRemoved=JSON.parse(localStorage.getItem('vr_removed')||'[]')||[];}catch(e){}
+(function(){const rm=new Set(manualRemoved);for(let i=V.length-1;i>=0;i--){if(rm.has(V[i].id))V.splice(i,1);}
+  manualAdded.forEach(a=>{ if(!V.some(v=>v.id===a.id)) V.push({id:a.id,type:a.type,base:a.unit,unit:a.unit,tsadi:a.tsadi||'',note:a.note||'',ready:a.ready||'כשיר',manual:true}); });})();
+const TYPE_TOTAL={}; function recomputeTotals(){TYPES.forEach(t=>TYPE_TOTAL[t]=V.filter(v=>v.type===t).length);}
+recomputeTotals();
+function nextManualId(){let m=800000;manualAdded.forEach(a=>{if(a.id>m)m=a.id;});V.forEach(v=>{if(v.id>=800000&&v.id<900000&&v.id>m)m=v.id;});return m+1;}
+
+const ADMIN_HASH='2082dd15c358c81bbd4e73a3d971623f961dd2f4d418a69b6e61ef00260335b0';
+let isAdmin=false; try{isAdmin=localStorage.getItem('vr_admin')==='1';}catch(e){}
 
 let log=[]; let targets={};
 let activeTab='רכב', tgType='האמר סיור', targetsOpen=false, baseOpen=false;
@@ -2503,7 +2526,7 @@ function renderDrawer(){
     '<div class="dlist" id="drList"></div>';
   const list=d.querySelector('#drList');
   if(!vs.length)list.innerHTML='<div class="empty">אין כלים בתא זה.</div>';
-  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top"><input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'><span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="לחצו לשינוי כשירות"><span class="dot"></span>'+esc(nr)+'</button><select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select></div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…">'+esc(v.note)+'</textarea></div>';}).join('');
+  else list.innerHTML=vs.map(v=>{const moved=v.unit!==v.base,nr=normReady(v.ready),rc=RDY_CLS[nr]||'';return '<div class="vcard'+(moved?' moved':'')+'" data-vid="'+v.id+'"><div class="top"><input type="checkbox" class="chk" data-vid="'+v.id+'" '+(drawerSel.has(v.id)?'checked':'')+'><span class="tsadiWrap">'+ic('hash')+'<input class="tsadiVal'+(v.tsadi?'':' empty')+'" data-vid="'+v.id+'" value="'+esc(v.tsadi)+'" placeholder="ללא צ׳ — הזן"></span>'+(moved?'<span class="origin">מ'+esc(v.base)+'</span>':'')+'<button class="rdy '+rc+'" data-vid="'+v.id+'" title="לחצו לשינוי כשירות"><span class="dot"></span>'+esc(nr)+'</button><select class="mvOne" data-vid="'+v.id+'" title="העבר כלי זה"><option value="">העבר ל…</option>'+destOpts+'</select>'+(isAdmin?'<button class="delVeh" data-vid="'+v.id+'" title="מחק כלי (מנהל)">'+ic('trash')+'</button>':'')+'</div><textarea class="note" data-vid="'+v.id+'" placeholder="הערה / מצב הכלי…">'+esc(v.note)+'</textarea></div>';}).join('');
   d.querySelector('#drClose').addEventListener('click',closeDrawer);
   d.querySelector('#drMove').addEventListener('click',()=>{const to=d.querySelector('#drDest').value,ids=[...drawerSel];if(!ids.length)return;ids.forEach(id=>moveVehicle(id,to));toast(ids.length+' כלים הועברו ל־'+to,'good');closeDrawer();renderAll();});
   list.querySelectorAll('.chk').forEach(c=>c.addEventListener('change',e=>{const id=+e.target.getAttribute('data-vid');if(e.target.checked)drawerSel.add(id);else drawerSel.delete(id);updDrSel();}));
@@ -2511,6 +2534,7 @@ function renderDrawer(){
   list.querySelectorAll('.note').forEach(n=>n.addEventListener('change',e=>{const v=byId(+e.target.getAttribute('data-vid'));if(v){v.note=e.target.value;save();}}));
   list.querySelectorAll('.rdy').forEach(b=>b.addEventListener('click',()=>{const v=byId(+b.getAttribute('data-vid'));if(v){const ci=RDY.indexOf(normReady(v.ready));v.ready=RDY[(ci+1)%RDY.length];save();renderDrawer();renderScenario();}}));
   list.querySelectorAll('.mvOne').forEach(s=>s.addEventListener('change',e=>{const to=e.target.value;if(!to)return;const id=+e.target.getAttribute('data-vid'),v=byId(id);moveVehicle(id,to);toast(v.type+' צ׳ '+(v.tsadi||'—')+' → '+to,'good');renderAll();renderDrawer();}));
+  list.querySelectorAll('.delVeh').forEach(b=>b.addEventListener('click',()=>removeVehicle(+b.getAttribute('data-vid'))));
   updDrSel();
 }
 function updDrSel(){const d=document.getElementById('drawer'),n=drawerSel.size,b=d.querySelector('#drMove');if(!b)return;b.disabled=!n;d.querySelector('#drSelN').textContent=n;d.querySelector('#drHint').style.display=n?'none':'';}
@@ -2584,6 +2608,64 @@ function importTsadi(text){
   return {ok,miss,errs};
 }
 
+/* ---------- admin: add / remove vehicles (manager-only) ---------- */
+async function sha256hex(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function setAdmin(on){isAdmin=on;try{if(on)localStorage.setItem('vr_admin','1');else localStorage.removeItem('vr_admin');}catch(e){}updateAdminUI();}
+async function toggleAdmin(){
+  if(isAdmin){setAdmin(false);toast('מצב מנהל כבוי','good');return;}
+  const pw=prompt('סיסמת מנהל:');if(pw==null)return;
+  try{const h=await sha256hex(pw);if(h===ADMIN_HASH){setAdmin(true);toast('מצב מנהל פעיל ✓','good');}else toast('סיסמה שגויה','err');}catch(e){toast('בדיקת סיסמה זמינה רק בכתובת מאובטחת (https)','err');}
+}
+function updateAdminUI(){
+  const b=document.getElementById('btnAdmin');if(b){b.classList.toggle('adminOn',isAdmin);b.innerHTML=ic(isAdmin?'unlock':'lock')+(isAdmin?'מנהל ✓':'מנהל');}
+  const add=document.getElementById('btnAddVeh');if(add)add.style.display=isAdmin?'':'none';
+  const imp=document.getElementById('btnImport');if(imp)imp.style.display=isAdmin?'':'none';
+  if(drawerKey)renderDrawer();
+  if(!document.getElementById('tsadiScreen').classList.contains('hidden'))renderTsadi();
+}
+function openAddVehicle(){
+  if(!isAdmin){toast('נדרש מצב מנהל','err');return;}
+  const host=document.getElementById('modalHost');
+  const unitOpts=UNITS.map(u=>'<option value="'+esc(u)+'">'+esc(u)+'</option>').join('');
+  const typeOpts=CATS_V.concat(CATS_R).map(c=>'<optgroup label="'+esc(c)+'">'+TYPES.filter(t=>TYPE_CAT[t]===c).map(t=>'<option value="'+esc(t)+'">'+esc(t)+'</option>').join('')+'</optgroup>').join('');
+  const rdyOpts=RDY.map(r=>'<option>'+r+'</option>').join('');
+  host.innerHTML='<div class="modal"><div class="backdrop show" id="avBack"></div><div class="modalCard"><h3>'+ic('plus')+'הוספת כלי חדש</h3>'+
+    '<p>הכלי מתווסף לחטיבה ונשמר במכשיר זה. כדי שיופיע בכל המכשירים — ייצאו לאקסל ושִלחו לי, ואטמיע אותו כברירת מחדל.</p>'+
+    '<div class="avForm">'+
+     '<label>מסגרת<select id="avUnit">'+unitOpts+'</select></label>'+
+     '<label>סוג רכב<select id="avType">'+typeOpts+'</select></label>'+
+     '<label>צ׳<input id="avTsadi" placeholder="מספר צ׳"></label>'+
+     '<label>כשירות<select id="avRdy">'+rdyOpts+'</select></label>'+
+     '<label class="wide">הערה<input id="avNote" placeholder="(רשות)"></label>'+
+    '</div>'+
+    '<div class="modalActions"><button class="btn primary" id="avGo">'+ic('check')+'הוסף</button><button class="btn" id="avCancel">ביטול</button></div>'+
+    '<div id="avMsg" style="margin-top:9px;font-size:12.5px;color:var(--neg);font-weight:700"></div></div></div>';
+  const close=()=>host.innerHTML='';
+  host.querySelector('#avBack').addEventListener('click',close);
+  host.querySelector('#avCancel').addEventListener('click',close);
+  host.querySelector('#avGo').addEventListener('click',()=>{
+    const unit=host.querySelector('#avUnit').value,type=host.querySelector('#avType').value,tsadi=host.querySelector('#avTsadi').value.trim(),ready=host.querySelector('#avRdy').value,note=host.querySelector('#avNote').value;
+    if(tsadi&&V.some(v=>v.tsadi===tsadi)){host.querySelector('#avMsg').textContent='צ׳ '+tsadi+' כבר קיים במערכת.';return;}
+    const id=nextManualId(),v={id,type,base:unit,unit,tsadi,note,ready,manual:true};
+    V.push(v);manualAdded.push({id,unit,type,tsadi,note,ready});
+    try{localStorage.setItem('vr_added',JSON.stringify(manualAdded));}catch(e){}
+    recomputeTotals();save();renderAll();close();
+    toast('נוסף: '+type+(tsadi?' צ׳ '+tsadi:'')+' ל'+unit,'good');
+  });
+}
+function removeVehicle(vid){
+  if(!isAdmin){toast('נדרש מצב מנהל','err');return;}
+  const v=byId(vid);if(!v)return;
+  if(!confirm('למחוק לצמיתות '+(v.tsadi?'צ׳ '+v.tsadi+' ':'')+'('+v.type+' · '+v.unit+')?'))return;
+  const idx=V.indexOf(v);if(idx>=0)V.splice(idx,1);
+  const ai=manualAdded.findIndex(a=>a.id===vid);
+  if(ai>=0){manualAdded.splice(ai,1);try{localStorage.setItem('vr_added',JSON.stringify(manualAdded));}catch(e){}}
+  else{if(!manualRemoved.includes(vid)){manualRemoved.push(vid);try{localStorage.setItem('vr_removed',JSON.stringify(manualRemoved));}catch(e){}}}
+  drawerSel.delete(vid);
+  recomputeTotals();save();renderAll();
+  toast('הכלי נמחק','good');
+}
+
 function bindScenario(){
   const w=document.getElementById('scenarioTableWrap');
   w.addEventListener('click',e=>{
@@ -2615,6 +2697,8 @@ document.getElementById('btnClearLog').addEventListener('click',()=>{if(!log.len
 document.getElementById('btnToggleBase').addEventListener('click',()=>{baseOpen=!baseOpen;document.getElementById('baselineTableWrap').style.display=baseOpen?'block':'none';});
 document.getElementById('btnTsadi').addEventListener('click',openTsadi);
 document.getElementById('btnImport').addEventListener('click',openImport);
+document.getElementById('btnAdmin').addEventListener('click',toggleAdmin);
+document.getElementById('btnAddVeh').addEventListener('click',openAddVehicle);
 document.getElementById('btnPrint').addEventListener('click',()=>window.print());
 document.getElementById('btnCsv').addEventListener('click',exportCSV);
 
@@ -2677,7 +2761,7 @@ for(let _i=12;_i>=1;_i--){try{const _raw=localStorage.getItem('vr_state_v'+_i);i
 })();
 // readiness: embedded universal statuses as base, then local non-כשיר edits layered on top (always applied — survives reload)
 V.forEach(v=>{ if(v.tsadi&&DEFAULT_READINESS[v.tsadi]) v.ready=DEFAULT_READINESS[v.tsadi]; if(_localReady[v.id]) v.ready=_localReady[v.id]; v.ready=normReady(v.ready); });
-paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();
+paintStaticIcons();renderBaseline();bindScenario();refreshSavedSel();renderAll();updateAdminUI();
 })();
 </script>
 </body>
