@@ -2493,8 +2493,8 @@ function renderScenario(){
   let h='<table class="grid">'+headerRows()+'<tbody>';
   h+='<tr class="frameRow poolRow"><td class="frameName">'+fnLabel(POOL)+'</td>'+cols.map(t=>scenarioCell(POOL,t)).join('')+'</tr>';
   UNITS.forEach(u=>{h+='<tr class="frameRow'+(COMBAT.has(u)?' combat':'')+'"><td class="frameName">'+fnLabel(u)+'</td>'+cols.map(t=>scenarioCell(u,t)).join('')+'</tr>';});
-  h+='</tbody><tfoot><tr><td class="frameName">סה״כ / בסיס</td>';
-  cols.forEach(t=>{const c=curTotal(t);h+='<td class="totCell'+(c!==TYPE_TOTAL[t]?' bad':'')+'"><div class="totCur">'+c+'</div><div class="totBase">בסיס '+TYPE_TOTAL[t]+'</div></td>';});
+  h+='</tbody><tfoot><tr><td class="frameName">סה״כ</td>';
+  cols.forEach(t=>{const c=UNITS.reduce((s,u)=>s+count(u,t),0);h+='<td class="totCell"><div class="totCur">'+c+'</div></td>';});
   h+='</tr></tfoot></table>';w.innerHTML=h;w.scrollLeft=sl;
 }
 function renderBaseline(){
