@@ -2493,7 +2493,7 @@ function headerRows(){
   return h+'</tr></thead>';
 }
 // optional grey sub-label under a frame name (e.g. organisational affiliation)
-const UNIT_SUB={'פלת"צ':'משוייך גדס"ר'};
+const UNIT_SUB={'פלת"צ':'משויך גדס"ר'};
 function fnLabel(u){
   const s=UNIT_SUB[u]?'<span class="fnSub">('+esc(UNIT_SUB[u])+')</span>':'';
   if(u===POOL)return '<span class="fnm">'+ic('inbox')+esc(POOL)+'</span>'+s;
